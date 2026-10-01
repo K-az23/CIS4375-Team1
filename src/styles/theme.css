@@ -1,16 +1,38 @@
 :root {
-  --black: #0f0f0f;
+  /* Brand colors - Black, White, Gold */
+  --black: #0d0d0d;
   --black-soft: #1a1a1a;
+  --charcoal: #2b2a28;
   --gold: #b8975a;
-  --gold-light: #c9a96e;
-  --cream: #efe7d6;
+  --gold-light: #cdb07a;
+  --gold-dark: #8c6f3e;
+  --cream: #f1eadb;
   --white: #ffffff;
-  --gray-placeholder: #d9d9d9;
-  --gray-line: #e5e5e5;
-  --text: #111111;
-  --text-muted: #6b6b6b;
+  --off-white: #f7f6f3;
 
+  /* Neutrals */
+  --gray-placeholder: #d9d9d9;
+  --gray-line: #e4e1da;
+  --text: #141414;
+  --text-muted: #6b6760;
+  --text-on-dark: #e9e6df;
+  --text-on-dark-muted: #a8a399;
+
+  /* Status colors for badges */
+  --success: #4f6b4a;
+  --success-bg: #e2eadd;
+  --warning: #8a5f17;
+  --warning-bg: #f5ead2;
+  --danger: #9b3b30;
+  --danger-bg: #f4dfdb;
+
+  /* Fonts */
   --font-heading: 'DM Serif Display', Georgia, serif;
-  --font-body: 'Inter', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+
+  /* Shapes */
+  --radius-sm: 6px;
   --radius: 10px;
+  --radius-lg: 16px;
+  --nav-height: 76px;
 }
