@@ -1,0 +1,16 @@
+:root {
+  --black: #0f0f0f;
+  --black-soft: #1a1a1a;
+  --gold: #b8975a;
+  --gold-light: #c9a96e;
+  --cream: #efe7d6;
+  --white: #ffffff;
+  --gray-placeholder: #d9d9d9;
+  --gray-line: #e5e5e5;
+  --text: #111111;
+  --text-muted: #6b6b6b;
+
+  --font-heading: 'DM Serif Display', Georgia, serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --radius: 10px;
+}
