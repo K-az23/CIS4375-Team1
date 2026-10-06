@@ -5,8 +5,10 @@ import Footer from '../components/Footer';
 export default function PublicLayout() {
   return (
     <>
-      <Navbar />
-      <main><Outlet /></main>
+      <Navbar variant="public" />
+      <main>
+        <Outlet />
+      </main>
       <Footer />
     </>
   );
