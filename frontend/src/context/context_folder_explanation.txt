@@ -1,0 +1,34 @@
+CONTEXT FOLDER
+
+PURPOSE
+This folder holds shared state that many parts of the app need at the
+same time. Instead of passing data down through every component, a
+context makes it available anywhere in the app.
+
+WHAT GOES HERE
+- AuthContext.jsx
+  Tracks who is logged in. It provides:
+    user     - the current user's info (or null if logged out)
+    loading  - true while checking if a saved login is still valid
+    login    - logs a user in
+    register - creates an account and logs in
+    logout   - logs the user out
+  Any component can access these with useAuth().
+
+- Future contexts only for data that is truly app-wide (for example,
+  a theme or notification system). Data used by only one page should
+  stay in that page, not in a context.
+
+HOW IT CONNECTS
+- Services: AuthContext.jsx does not talk to the backend itself. It
+  calls functions in services/auth.js, which handle the requests.
+- main.jsx: the app is wrapped in <AuthProvider> in main.jsx. This is
+  what makes the login state available to every page and component.
+- Pages: Login.jsx calls login() from useAuth(). Dashboard.jsx reads
+  user to show the user's info and redirect if not logged in.
+- Components: Navbar.jsx reads user to show a Login or Logout button.
+
+FLOW
+main.jsx wraps App in AuthProvider
+  -> AuthContext calls services/auth.js
+  -> pages and components read the state with useAuth()
