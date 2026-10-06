@@ -1,0 +1,55 @@
+:root {
+  /* Brand: black, white, gold */
+  --black: #111111;
+  --charcoal: #1d1c1a;
+  --graphite: #2c2b28;
+  --gold: #b8975a;
+  --gold-light: #cbb07c;
+  --gold-dark: #8a6d3b;
+  --cream: #f3eee4;
+  --white: #ffffff;
+  --paper: #f8f7f4;
+
+  /* Lines and text */
+  --line: #e4e0d8;
+  --line-strong: #cdc7bb;
+  --text: #161616;
+  --text-muted: #6a665e;
+  --text-on-dark: #e8e4dc;
+  --text-on-dark-muted: #a19c92;
+  --placeholder: #dcd8cf;
+
+  /* Status colors */
+  --success: #3f6140;
+  --success-bg: #e4ece2;
+  --warning: #855c14;
+  --warning-bg: #f6ecd6;
+  --danger: #9a3a2f;
+  --danger-bg: #f5e1dd;
+  --info: #3d5170;
+  --info-bg: #e3e9f2;
+
+  /* Type */
+  --font-heading: 'DM Serif Display', Georgia, serif;
+  --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+
+  /* Spacing scale (use these instead of random numbers) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --space-9: 96px;
+
+  /* Shapes */
+  --radius-sm: 4px;
+  --radius: 6px;
+  --radius-lg: 10px;
+  --shadow: 0 1px 2px rgba(17, 17, 17, 0.05), 0 4px 16px rgba(17, 17, 17, 0.04);
+
+  --container: 1160px;
+  --nav-height: 72px;
+}
