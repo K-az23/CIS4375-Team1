@@ -1,0 +1,65 @@
+CONSIDER ADDING / UPDATING - FRONTEND
+(Services and context folders are documented separately.)
+
+REQUIRED
+----------------------------------------------------------------------
+1. components/Loading.jsx  (ADD)
+   Shown while the app checks if a saved login is still valid, and
+   while pages wait for data from the backend. Used by AuthContext's
+   "loading" state and by ProtectedRoute.
+
+2. components/ProtectedRoute.jsx  (ADD)
+   Blocks pages based on login and role. Checks user and user.role
+   from AuthContext. Logged-out users go to Login, and customers who
+   try to open admin pages go back to their own dashboard.
+   NOTE: This is for user experience only. Real security is enforced
+   by the backend middleware (authMiddleware.js), which rejects any
+   request without a valid token or the correct role.
+
+3. pages/public/NotFound.jsx  (ADD if missing)
+   Shown when a user goes to a URL that doesn't exist. Without it,
+   a bad URL shows a blank page.
+
+4. frontend/.env  (ADD)
+   Contains one line:  VITE_API_URL=http://localhost:5000/api
+   Tells services/api.js where the backend is. When deployed to AWS,
+   only this value changes. Covered by .gitignore.
+
+5. react-router-dom  (CONFIRM INSTALLED)
+   Check frontend/package.json under "dependencies". Needed for page
+   navigation, ProtectedRoute, and the admin/customer/public
+   sections. If missing, run inside frontend/:
+     npm install react-router-dom
+
+6. main.jsx  (UPDATE)
+   Wrap <App /> in <AuthProvider> so login state is available to
+   every page and component.
+
+7. data/services.js  (RENAME to salonServices.js)
+   The current name conflicts with the services/ folder and will
+   cause wrong imports. Update any files that import it.
+
+PLANNED CHANGE
+----------------------------------------------------------------------
+8. data/ folder  (SHRINK OVER TIME)
+   sampleData.js, and any other data that changes (bookings,
+   customers, services, prices), is temporary. Once the backend is
+   running, this data comes from the MySQL database through the
+   services/ folder. Only fixed content (like image paths) stays in
+   data/. Do not build new features on sample data.
+
+OPTIONAL
+----------------------------------------------------------------------
+9. components/  (GROUP INTO SUBFOLDERS)
+   22+ files in one folder will get hard to navigate. Suggested:
+     common/     Navbar, Footer, Logo, Modal, ScrollToTop, Loading,
+                 ProtectedRoute
+     public/     PageHero, CTABanner, FeatureStrip, GalleryGrid,
+                 ServiceList, ServiceTabs, SectionHeader,
+                 SocialLinks, SpecList, ChoiceGroup
+     dashboard/  DashboardHeader, Sidebar, Panel, DataTable,
+                 BarChart, StatCard, StatusBadge
+   Matches the admin/customer/public split in pages/ and layouts/.
+   Move files by dragging in VS Code and accept the prompt to update
+   imports. Coordinate with the team first so nobody is editing
+   components during the move.

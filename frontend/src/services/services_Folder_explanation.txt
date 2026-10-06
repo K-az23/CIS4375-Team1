@@ -1,0 +1,35 @@
+SERVICES FOLDER
+
+PURPOSE
+This folder holds all code that communicates with the backend API.
+No other part of the frontend should call fetch() directly. Every
+request to the server goes through a file in this folder.
+
+WHAT GOES HERE
+- api.js
+  The base request helper. It adds the backend URL, attaches the
+  user's login token to every request, converts data to and from
+  JSON, and turns server errors into readable messages. Every other
+  service file is built on top of this one.
+
+- auth.js
+  Login, register, logout, and checking who is currently logged in.
+  Saves the login token in the browser after a successful login and
+  removes it on logout.
+
+- Future files follow the same pattern, one file per backend feature
+  (for example, files.js once the S3 bucket is set up, or a file for
+  any other data the app needs).
+
+HOW IT CONNECTS
+- Backend: each service file matches a group of backend routes.
+  auth.js calls the routes in backend/routes/authRoutes.js
+  (/api/auth/login, /api/auth/register, /api/auth/me).
+- Context: context/AuthContext.jsx uses auth.js to log users in and
+  out and to restore the session when the page loads.
+- Pages and components: they either use a context (for login state)
+  or import a service function directly (for data like lists or
+  forms). They never talk to the backend on their own.
+
+FLOW
+Page/Component -> Context (optional) -> Service -> api.js -> Backend
