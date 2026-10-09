@@ -6,6 +6,7 @@ import Panel from '../../components/Panel';
 import DataTable from '../../components/DataTable';
 import StatusBadge from '../../components/StatusBadge';
 import BarChart from '../../components/BarChart';
+import { useAuth } from '../../context/AuthContext';
 import { business } from '../../data/business';
 import { todaysAppointments, hairOrders, inventoryItems, weeklySales, money } from '../../data/sampleData';
 
@@ -36,6 +37,7 @@ const stockColumns = [
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const needsAction = hairOrders.filter((o) => ['Pending', 'Invoice sent'].includes(o.status));
   const lowStock = inventoryItems.filter((i) => i.qty <= i.threshold);
   const todaySales = weeklySales.find((d) => d.today)?.value ?? 0;
@@ -44,8 +46,7 @@ export default function AdminDashboard() {
     <>
       <DashboardHeader
         eyebrow="Owner dashboard"
-        title={`${greeting()}, Admin`}
-        subtitle={`Here's what's happening at ${business.name} today.`}
+        title={`${greeting()}, ${user?.firstName || 'Admin'}`}        subtitle={`Here's what's happening at ${business.name} today.`}
         showIcons
       />
 

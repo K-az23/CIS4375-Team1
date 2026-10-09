@@ -10,7 +10,7 @@ import { hairOrders, customers, money } from '../../data/sampleData';
 
 const filters = ['All', 'Invoice sent', 'Pending', 'Ordered', 'Received'];
 const nextStatus = { Pending: 'Ordered', Ordered: 'Received' };
-const customFields = specFields.filter((f) => f.key !== 'length');
+const customFields = specFields;
 const emptySpecs = Object.fromEntries(customFields.map((f) => [f.key, null]));
 
 export default function PurchasingTracker() {
