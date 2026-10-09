@@ -1,6 +1,7 @@
 from flask import Flask, jsonify
 from flask_cors import CORS
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.config import Config
 from app.extensions import db
@@ -21,7 +22,7 @@ def create_app():
         try:
             db.session.execute(text("SELECT 1"))
             return jsonify(database="connected")
-        except Exception as e:
+        except SQLAlchemyError as e:
             detail = str(e) if app.debug else "Database unavailable"
             return jsonify(database="error", detail=detail), 500
 

@@ -1,4 +1,5 @@
 import os
+from typing import ClassVar
 from urllib.parse import quote_plus
 
 from dotenv import load_dotenv
@@ -16,6 +17,6 @@ def _database_uri():
 
 
 class Config:
-    CLIENT_URL = os.getenv("CLIENT_URL", "http://localhost:5173")
-    SQLALCHEMY_DATABASE_URI = _database_uri()
-    SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True, "pool_recycle": 1800}
+    CLIENT_URL: ClassVar[str] = os.getenv("CLIENT_URL", "http://localhost:5173")
+    SQLALCHEMY_DATABASE_URI: ClassVar[str] = _database_uri()
+    SQLALCHEMY_ENGINE_OPTIONS: ClassVar[dict] = {"pool_pre_ping": True, "pool_recycle": 1800}
