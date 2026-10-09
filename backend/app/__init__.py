@@ -1,17 +1,28 @@
-import os
-
-from dotenv import load_dotenv
 from flask import Flask, jsonify
 from flask_cors import CORS
+from sqlalchemy import text
+
+from app.config import Config
+from app.extensions import db
 
 
 def create_app():
-    load_dotenv()
     app = Flask(__name__)
-    CORS(app, origins=[os.getenv("CLIENT_URL", "http://localhost:5173")])
+    app.config.from_object(Config)
+    CORS(app, origins=[app.config["CLIENT_URL"]])
+    db.init_app(app)
 
     @app.get("/api/health")
     def health():
         return jsonify(status="ok")
+
+    @app.get("/api/health/db")
+    def health_db():
+        try:
+            db.session.execute(text("SELECT 1"))
+            return jsonify(database="connected")
+        except Exception as e:
+            detail = str(e) if app.debug else "Database unavailable"
+            return jsonify(database="error", detail=detail), 500
 
     return app
