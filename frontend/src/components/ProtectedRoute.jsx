@@ -1,5 +1,6 @@
 import { Navigate, useLocation } from 'react-router-dom';
-import { useAuth, homeFor } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth.js';
+import { homeFor } from '../context/authUtils.js';
 import Loading from './Loading';
 
 export default function ProtectedRoute({ allow, children }) {

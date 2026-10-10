@@ -1,9 +1,7 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api, ENDPOINTS } from '../api/client';
-
-const AuthContext = createContext(null);
-
-export const isDemoMode = import.meta.env.DEV && import.meta.env.VITE_DEMO_AUTH === 'true';
+import { AuthContext } from './authContext.js';
+import { isDemoMode } from './authUtils.js';
 
 const demoUsers = {
   customer: { id: 'demo-customer', firstName: 'John', lastName: 'Smith', email: 'demo-client@test.com', role: 'customer' },
@@ -25,23 +23,16 @@ function toUser(data) {
   };
 }
 
-// Where each kind of user lands after logging in.
-export function homeFor(role) {
-  return role === 'owner' ? '/admin' : '/account';
-}
-
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [checking, setChecking] = useState(true); 
+  const [user, setUser] = useState(() => {
+    if (!isDemoMode) return null;
+    const saved = sessionStorage.getItem('demoRole');
+    return saved ? demoUsers[saved] : null;
+  });
+  const [checking, setChecking] = useState(!isDemoMode);
 
   useEffect(() => {
-    if (isDemoMode) {
-      // Keep the demo user after a page refresh
-      const saved = sessionStorage.getItem('demoRole');
-      setUser(saved ? demoUsers[saved] : null);
-      setChecking(false);
-      return;
-    }
+    if (isDemoMode) return;
     api(ENDPOINTS.me)
       .then((data) => setUser(toUser(data)))
       .catch(() => setUser(null))
@@ -65,7 +56,6 @@ export function AuthProvider({ children }) {
     return saveSession(data);
   }
 
-  // Demo mode only: log in as 'customer' or 'owner' with one click
   function loginAsDemo(role) {
     sessionStorage.setItem('demoRole', role);
     setUser(demoUsers[role]);
@@ -78,10 +68,7 @@ export function AuthProvider({ children }) {
       setUser(null);
       return;
     }
-    try {
-      await api(ENDPOINTS.logout, { method: 'POST' });
-    } catch {
-    }
+    await api(ENDPOINTS.logout, { method: 'POST' }).catch(() => null);
     localStorage.removeItem('token');
     setUser(null);
   }
@@ -91,8 +78,4 @@ export function AuthProvider({ children }) {
       {children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth() {
-  return useContext(AuthContext);
 }

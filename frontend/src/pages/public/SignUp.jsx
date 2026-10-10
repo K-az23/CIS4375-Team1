@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { Info } from 'lucide-react';
-import { useAuth, homeFor } from '../../context/AuthContext';
+import { useAuth } from '../../context/useAuth.js';
+import { homeFor } from '../../context/authUtils.js';
 
 const emptyForm = { firstName: '', lastName: '', email: '', phone: '', password: '', confirm: '' };
 
@@ -27,8 +28,13 @@ export default function SignUp() {
     }
     setSubmitting(true);
     try {
-      const { confirm, ...fields } = form;
-      const newUser = await register(fields);
+      const newUser = await register({
+        firstName: form.firstName,
+        lastName: form.lastName,
+        email: form.email,
+        phone: form.phone,
+        password: form.password,
+      });
       navigate(homeFor(newUser.role), { replace: true, state: { newAccount: true } });
     } catch (err) {
       setError(err.status === 409 ? 'An account with that email already exists.' : err.message);

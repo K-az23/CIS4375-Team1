@@ -6,7 +6,7 @@ import Panel from '../../components/Panel';
 import DataTable from '../../components/DataTable';
 import StatusBadge from '../../components/StatusBadge';
 import SpecList from '../../components/SpecList';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/useAuth.js';
 import { business } from '../../data/business';
 import { specFields, formatSpec } from '../../data/hairOptions';
 import { currentCustomer, nextAppointment, customerOrders, money } from '../../data/sampleData';

@@ -93,7 +93,7 @@ ul { list-style: none; }
 /*  Forms  */
 .form { display: grid; gap: var(--space-4); }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
-.field { display: grid; gap: 6px; }
+.field { display: grid; gap: 6px; align-content: start; }
 .field label { font-size: 0.82rem; font-weight: 500; }
 .field input,
 .field select,

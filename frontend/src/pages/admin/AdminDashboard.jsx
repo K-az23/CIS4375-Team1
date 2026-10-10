@@ -6,7 +6,7 @@ import Panel from '../../components/Panel';
 import DataTable from '../../components/DataTable';
 import StatusBadge from '../../components/StatusBadge';
 import BarChart from '../../components/BarChart';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../context/useAuth.js';
 import { business } from '../../data/business';
 import { todaysAppointments, hairOrders, inventoryItems, weeklySales, money } from '../../data/sampleData';
 

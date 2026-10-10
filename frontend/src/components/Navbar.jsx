@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import { Menu, X, Bell, User } from 'lucide-react';
 import Logo from './Logo';
-import { useAuth, homeFor } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth.js';
+import { homeFor } from '../context/authUtils.js';
 
 const links = [
   { to: '/', label: 'Home', end: true },

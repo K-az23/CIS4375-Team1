@@ -4,7 +4,7 @@ import {
 } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/useAuth.js';
 
 const customerLinks = [
   { to: '/account', label: 'Overview', icon: LayoutDashboard, end: true },

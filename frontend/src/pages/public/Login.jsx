@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Check, Info } from 'lucide-react';
-import { useAuth, homeFor, isDemoMode } from '../../context/AuthContext';
+import { useAuth } from '../../context/useAuth.js';
+import { homeFor, isDemoMode } from '../../context/authUtils.js';
 
 export default function Login() {
   const { user, login, loginAsDemo } = useAuth();
@@ -80,7 +81,7 @@ export default function Login() {
             </div>
           </div>
         )}
-        
+
         {error && <p className="notice notice--warning" style={{ marginBottom: 16 }}><Info size={16} /> {error}</p>}
 
         <form className="form" onSubmit={handleLogin}>
