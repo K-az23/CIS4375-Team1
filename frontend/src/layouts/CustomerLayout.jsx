@@ -33,6 +33,7 @@ export default function CustomerLayout() {
         <Sidebar
           label="My account"
           links={customerLinks}
+          onLogout={handleLogout}
           bottom={
             <button className="sidebar__logout" onClick={handleLogout}>
               <LogOut size={18} /> Log Out

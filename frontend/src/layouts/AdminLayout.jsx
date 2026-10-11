@@ -34,6 +34,7 @@ export default function AdminLayout() {
         top={<Logo />}
         label="Owner tools"
         links={adminLinks}
+        onLogout={handleLogout}
         bottom={
           <>
             <div className="sidebar__user">
