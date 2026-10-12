@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import Sidebar from '../components/Sidebar';
 import Logo from '../components/Logo';
+import { useAuth } from '../context/useAuth.js';
 
 const adminLinks = [
   { to: '/admin', label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -19,6 +20,13 @@ const adminLinks = [
 
 export default function AdminLayout() {
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
+  const name = user?.firstName || 'Admin';
+
+  function handleLogout() {
+    navigate('/');
+    logout();
+  }
 
   return (
     <div className="dash">
@@ -26,16 +34,17 @@ export default function AdminLayout() {
         top={<Logo />}
         label="Owner tools"
         links={adminLinks}
+        onLogout={handleLogout}
         bottom={
           <>
             <div className="sidebar__user">
-              <span className="sidebar__avatar">A</span>
+              <span className="sidebar__avatar">{name[0]}</span>
               <div>
-                <div className="sidebar__user-name">Admin</div>
+                <div className="sidebar__user-name">{name}</div>
                 <div className="sidebar__user-role">Owner</div>
               </div>
             </div>
-            <button className="sidebar__logout" onClick={() => navigate('/')}>
+            <button className="sidebar__logout" onClick={handleLogout}>
               <LogOut size={18} /> Log Out
             </button>
           </>

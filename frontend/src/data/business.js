@@ -7,10 +7,9 @@ export const business = {
   bookingUrl: 'https://theexecutiveparlor.setmore.com',
   mapsUrl:
     'https://www.google.com/maps/search/?api=1&query=9945+Barker+Cypress+Rd+Suite+200+Cypress+TX+77433',
-  // Replace '#' with the real profile links
-  instagramUrl: '#',
-  tiktokUrl: '#',
-  facebookUrl: '#',
+  instagramUrl: 'https://www.instagram.com/theexecutiveparlor/',
+  facebookUrl: 'https://www.facebook.com/theexecutiveparlor/',
+  tiktokUrl: 'https://www.tiktok.com/discover/the-exclusive-parlor', 
   hours: [
     { days: 'Wednesday', time: '9 AM – 5 PM' },
     { days: 'Thursday', time: '9 AM – 6 PM' },

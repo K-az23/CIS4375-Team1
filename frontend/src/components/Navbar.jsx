@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import { Menu, X, Bell, User } from 'lucide-react';
 import Logo from './Logo';
+import { useAuth } from '../context/useAuth.js';
+import { homeFor } from '../context/authUtils.js';
 
 const links = [
   { to: '/', label: 'Home', end: true },
@@ -14,6 +16,7 @@ const links = [
 
 export default function Navbar({ variant = 'public' }) {
   const [open, setOpen] = useState(false);
+  const { user } = useAuth();
   const close = () => setOpen(false);
 
   return (
@@ -43,12 +46,18 @@ export default function Navbar({ variant = 'public' }) {
             </NavLink>
           ))}
 
-          {variant === 'public' ? (
+          {variant === 'public' && user && (
+            <div className="navbar__actions">
+              <Link to={homeFor(user.role)} className="btn btn-gold btn-sm" onClick={close}>My dashboard</Link>
+            </div>
+          )}
+          {variant === 'public' && !user && (
             <div className="navbar__actions">
               <Link to="/login" className="navbar__login" onClick={close}>Log In</Link>
               <Link to="/signup" className="btn btn-gold btn-sm" onClick={close}>Sign Up</Link>
             </div>
-          ) : (
+          )}
+          {variant === 'account' && (
             <div className="navbar__actions">
               <button className="navbar__icon" aria-label="Notifications">
                 <Bell size={20} />
