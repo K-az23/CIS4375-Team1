@@ -1,17 +1,37 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Check } from 'lucide-react';
-import ServiceTabs from '../../components/ServiceTabs';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Check, Info } from 'lucide-react';
+import { useAuth } from '../../context/useAuth.js';
+import { homeFor, isDemoMode } from '../../context/authUtils.js';
 
 export default function Login() {
+  const { user, login, loginAsDemo } = useAuth();
   const navigate = useNavigate();
-  const [role, setRole] = useState('customer');
+  const location = useLocation();
+
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const [resetMode, setResetMode] = useState(false);
   const [resetSent, setResetSent] = useState(false);
 
-  function handleLogin(e) {
+  if (user) return <Navigate to={homeFor(user.role)} replace />;
+
+  async function handleLogin(e) {
     e.preventDefault();
-    navigate(role === 'owner' ? '/admin' : '/account');
+    setError('');
+    setSubmitting(true);
+    try {
+      const loggedIn = await login(email, password);
+      const from = location.state?.from;
+      const home = homeFor(loggedIn.role);
+      navigate(from && from.startsWith(home) ? from : home, { replace: true });
+    } catch (err) {
+      setError(err.status === 401 ? 'That email and password don\'t match.' : err.message);
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   if (resetMode) {
@@ -47,27 +67,38 @@ export default function Login() {
           <h1>Log in</h1>
         </div>
 
-        <div style={{ marginBottom: 20 }}>
-          <ServiceTabs
-            options={[{ value: 'customer', label: 'Client' }, { value: 'owner', label: 'Owner' }]}
-            value={role}
-            onChange={setRole}
-          />
-        </div>
+        {/* Only shows when VITE_DEMO_AUTH=true and running locally */}
+        {isDemoMode && (
+          <div className="notice notice--info" style={{ marginBottom: 20, display: 'grid', gap: 10 }}>
+            <span><strong>Demo mode:</strong> preview a dashboard without an account.</span>
+            <div className="row">
+              <button type="button" className="btn btn-dark btn-sm" onClick={() => navigate(homeFor(loginAsDemo('customer')))}>
+                Client dashboard
+              </button>
+              <button type="button" className="btn btn-outline btn-sm" onClick={() => navigate(homeFor(loginAsDemo('owner')))}>
+                Owner dashboard
+              </button>
+            </div>
+          </div>
+        )}
+
+        {error && <p className="notice notice--warning" style={{ marginBottom: 16 }}><Info size={16} /> {error}</p>}
 
         <form className="form" onSubmit={handleLogin}>
           <div className="field">
             <label htmlFor="email">Email address</label>
-            <input id="email" type="email" required />
+            <input id="email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
           </div>
           <div className="field">
             <label htmlFor="password">Password</label>
-            <input id="password" type="password" required />
+            <input id="password" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
           </div>
           <div>
             <button type="button" className="link-gold" onClick={() => setResetMode(true)}>Forgot your password?</button>
           </div>
-          <button type="submit" className="btn btn-dark btn-block">Log in</button>
+          <button type="submit" className="btn btn-dark btn-block" disabled={submitting}>
+            {submitting ? 'Logging in…' : 'Log in'}
+          </button>
         </form>
 
         <p className="auth__switch">New here? <Link to="/signup">Create an account</Link></p>

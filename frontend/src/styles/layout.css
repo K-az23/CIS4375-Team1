@@ -59,8 +59,8 @@
 .social a { color: var(--white); display: inline-flex; }
 .social a:hover { color: var(--gold-light); }
 
-@media (max-width: 900px) { .footer__grid { grid-template-columns: 1fr 1fr; } }
-@media (max-width: 540px) { .footer__grid { grid-template-columns: 1fr; gap: var(--space-6); } }
+@media (max-width: 900px) { .footer__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 540px) { .footer__grid { grid-template-columns: minmax(0, 1fr); gap: var(--space-6); } }
 
 /*  Dashboard shell  */
 .dash { display: grid; grid-template-columns: 240px minmax(0, 1fr); min-height: 100vh; background: var(--paper); }
@@ -77,7 +77,7 @@
   overflow-y: auto;
 }
 .dash--with-topnav .sidebar { top: var(--nav-height); height: calc(100vh - var(--nav-height)); }
-.sidebar__brand { padding: 0 var(--space-2) var(--space-5); margin-bottom: var(--space-3); border-bottom: 1px solid rgba(184, 151, 90, 0.25); }
+.sidebar__brand { display: flex; justify-content: center; padding: 0 var(--space-2) var(--space-5); margin-bottom: var(--space-3); border-bottom: 1px solid rgba(184, 151, 90, 0.25); }
 .sidebar__label { padding: var(--space-3) var(--space-3) var(--space-2); font-size: 0.66rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-on-dark-muted); }
 .sidebar__nav { display: grid; gap: 2px; }
 .sidebar__link {
@@ -109,11 +109,46 @@
 }
 .sidebar__logout:hover { background: rgba(255, 255, 255, 0.06); }
 
+.sidebar__toggle, .sidebar__divider, .sidebar__nav-logout { display: none; }
+
 @media (max-width: 960px) {
   .dash { grid-template-columns: minmax(0, 1fr); }
-  .sidebar, .dash--with-topnav .sidebar { position: static; height: auto; padding: var(--space-2) var(--space-3); }
-  .sidebar__brand, .sidebar__label, .sidebar__footer { display: none; }
-  .sidebar__nav { display: flex; overflow-x: auto; gap: var(--space-1); }
-  .sidebar__link { white-space: nowrap; padding: 8px var(--space-3); font-size: 0.82rem; }
+  .sidebar, .dash--with-topnav .sidebar {
+    position: sticky; top: 0; z-index: 40; height: auto; overflow: visible;
+    display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: "brand" "menu";
+    align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4);
+  }
+  .dash--with-topnav .sidebar { top: var(--nav-height); grid-template-areas: "menu"; }
+  .sidebar__brand { grid-area: brand; justify-content: flex-start; padding: 0; margin: 0; border: none; }
+  .sidebar__brand .logo__img { height: 40px; }
+  .sidebar__label, .sidebar__footer { display: none; }
+
+  .sidebar__menu { grid-area: menu; position: relative; min-width: 0; }
+  .sidebar__toggle {
+    display: flex; align-items: center; gap: var(--space-3); width: 100%;
+    height: 48px; padding: 0 var(--space-4);
+    background: var(--gold); color: var(--black);
+    border: none; border-radius: var(--radius-sm);
+    font-family: var(--font-body); font-size: 0.95rem; font-weight: 600; cursor: pointer;
+  }
+  .sidebar__toggle-label { flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sidebar__chevron { transition: transform 0.2s; flex-shrink: 0; }
+  .sidebar__chevron.is-open { transform: rotate(180deg); }
+
+  .sidebar__nav {
+    display: none;
+    position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 60;
+    padding: var(--space-2);
+    background: var(--black); border: 1px solid rgba(184, 151, 90, 0.35); border-radius: var(--radius);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+    max-height: 70vh; overflow-y: auto; min-width: 260px;
+  }
+  .sidebar__nav.is-open { display: grid; gap: 2px; }
+  .sidebar__link { padding: 12px var(--space-4); font-size: 0.95rem; white-space: nowrap; }
+  .sidebar__divider { display: block; height: 1px; margin: var(--space-2) var(--space-2); background: rgba(184, 151, 90, 0.3); }
+  .sidebar__nav-logout {
+    display: flex; width: 100%; background: none; border: none; cursor: pointer;
+    font-family: var(--font-body); text-align: left;
+  }
   .dash__main { padding: var(--space-5) var(--space-4) var(--space-7); }
 }

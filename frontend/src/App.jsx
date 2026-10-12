@@ -1,6 +1,9 @@
+import { lazy, Suspense } from 'react';
 import { Routes, Route, Link } from 'react-router-dom';
 
 import ScrollToTop from './components/ScrollToTop';
+import ProtectedRoute from './components/ProtectedRoute';
+import Loading from './components/Loading';
 import PublicLayout from './layouts/PublicLayout';
 import CustomerLayout from './layouts/CustomerLayout';
 import AdminLayout from './layouts/AdminLayout';
@@ -15,24 +18,24 @@ import Contact from './pages/public/Contact';
 import Login from './pages/public/Login';
 import SignUp from './pages/public/SignUp';
 
-import CustomerDashboard from './pages/customer/CustomerDashboard';
-import BookAppointment from './pages/customer/BookAppointment';
-import Appointments from './pages/customer/Appointments';
-import Orders from './pages/customer/Orders';
-import HairSpecs from './pages/customer/HairSpecs';
-import PaymentMethod from './pages/customer/PaymentMethod';
-import PaymentHistory from './pages/customer/PaymentHistory';
-import CustomerSettings from './pages/customer/CustomerSettings';
+const CustomerDashboard = lazy(() => import('./pages/customer/CustomerDashboard'));
+const BookAppointment = lazy(() => import('./pages/customer/BookAppointment'));
+const Appointments = lazy(() => import('./pages/customer/Appointments'));
+const Orders = lazy(() => import('./pages/customer/Orders'));
+const HairSpecs = lazy(() => import('./pages/customer/HairSpecs'));
+const PaymentMethod = lazy(() => import('./pages/customer/PaymentMethod'));
+const PaymentHistory = lazy(() => import('./pages/customer/PaymentHistory'));
+const CustomerSettings = lazy(() => import('./pages/customer/CustomerSettings'));
 
-import AdminDashboard from './pages/admin/AdminDashboard';
-import Calendar from './pages/admin/Calendar';
-import AppointmentCheckout from './pages/admin/AppointmentCheckout';
-import Customers from './pages/admin/Customers';
-import PurchasingTracker from './pages/admin/PurchasingTracker';
-import Inventory from './pages/admin/Inventory';
-import Catalog from './pages/admin/Catalog';
-import Reports from './pages/admin/Reports';
-import AdminSettings from './pages/admin/AdminSettings';
+const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
+const Calendar = lazy(() => import('./pages/admin/Calendar'));
+const AppointmentCheckout = lazy(() => import('./pages/admin/AppointmentCheckout'));
+const Customers = lazy(() => import('./pages/admin/Customers'));
+const PurchasingTracker = lazy(() => import('./pages/admin/PurchasingTracker'));
+const Inventory = lazy(() => import('./pages/admin/Inventory'));
+const Catalog = lazy(() => import('./pages/admin/Catalog'));
+const Reports = lazy(() => import('./pages/admin/Reports'));
+const AdminSettings = lazy(() => import('./pages/admin/AdminSettings'));
 
 function NotFound() {
   return (
@@ -50,43 +53,61 @@ export default function App() {
   return (
     <>
       <ScrollToTop />
-      <Routes>
-        <Route element={<PublicLayout />}>
-          <Route path="/" element={<Home />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/services" element={<Services />} />
-          <Route path="/hair-catalog" element={<HairCatalog />} />
-          <Route path="/checkout" element={<Checkout />} />
-          <Route path="/memberships" element={<Memberships />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<SignUp />} />
-          <Route path="*" element={<NotFound />} />
-        </Route>
+      <Suspense fallback={<Loading fullPage />}>
+        <Routes>
+          <Route element={<PublicLayout />}>
+            <Route path="/" element={<Home />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/services" element={<Services />} />
+            <Route path="/hair-catalog" element={<HairCatalog />} />
+            <Route path="/checkout" element={<Checkout />} />
+            <Route path="/memberships" element={<Memberships />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<SignUp />} />
+            <Route path="*" element={<NotFound />} />
+          </Route>
 
-        <Route path="/account" element={<CustomerLayout />}>
-          <Route index element={<CustomerDashboard />} />
-          <Route path="book" element={<BookAppointment />} />
-          <Route path="appointments" element={<Appointments />} />
-          <Route path="orders" element={<Orders />} />
-          <Route path="hair-system" element={<HairSpecs />} />
-          <Route path="payment-method" element={<PaymentMethod />} />
-          <Route path="payments" element={<PaymentHistory />} />
-          <Route path="settings" element={<CustomerSettings />} />
-        </Route>
+          {/* Clients only */}
+          <Route
+            path="/account"
+            element={
+              <ProtectedRoute allow={['customer']}>
+                <CustomerLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<CustomerDashboard />} />
+            <Route path="book" element={<BookAppointment />} />
+            <Route path="appointments" element={<Appointments />} />
+            <Route path="orders" element={<Orders />} />
+            <Route path="hair-system" element={<HairSpecs />} />
+            <Route path="payment-method" element={<PaymentMethod />} />
+            <Route path="payments" element={<PaymentHistory />} />
+            <Route path="settings" element={<CustomerSettings />} />
+          </Route>
 
-        <Route path="/admin" element={<AdminLayout />}>
-          <Route index element={<AdminDashboard />} />
-          <Route path="calendar" element={<Calendar />} />
-          <Route path="checkout" element={<AppointmentCheckout />} />
-          <Route path="customers" element={<Customers />} />
-          <Route path="purchasing" element={<PurchasingTracker />} />
-          <Route path="inventory" element={<Inventory />} />
-          <Route path="catalog" element={<Catalog />} />
-          <Route path="reports" element={<Reports />} />
-          <Route path="settings" element={<AdminSettings />} />
-        </Route>
-      </Routes>
+          {/* Owner only */}
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute allow={['owner']}>
+                <AdminLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<AdminDashboard />} />
+            <Route path="calendar" element={<Calendar />} />
+            <Route path="checkout" element={<AppointmentCheckout />} />
+            <Route path="customers" element={<Customers />} />
+            <Route path="purchasing" element={<PurchasingTracker />} />
+            <Route path="inventory" element={<Inventory />} />
+            <Route path="catalog" element={<Catalog />} />
+            <Route path="reports" element={<Reports />} />
+            <Route path="settings" element={<AdminSettings />} />
+          </Route>
+        </Routes>
+      </Suspense>
     </>
   );
 }
