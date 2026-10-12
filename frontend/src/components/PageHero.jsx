@@ -1,7 +1,9 @@
-// Pass image="/photo.jpg" (a file in the public folder) to use a real photo.
-export default function PageHero({ eyebrow, title, subtitle, image, children }) {
+export default function PageHero({ eyebrow, title, subtitle, image, imagePosition = 'center', children }) {
   const style = image
-    ? { backgroundImage: `linear-gradient(rgba(17,17,17,.6), rgba(17,17,17,.85)), url(${image})` }
+    ? {
+        backgroundImage: `linear-gradient(rgba(17,17,17,.6), rgba(17,17,17,.85)), url(${image})`,
+        backgroundPosition: imagePosition,
+      }
     : undefined;
 
   return (

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowRight, Check, Info } from 'lucide-react';
+import { ArrowRight, Check } from 'lucide-react';
 import PageHero from '../../components/PageHero';
 import SectionHeader from '../../components/SectionHeader';
 import ChoiceGroup from '../../components/ChoiceGroup';
@@ -17,7 +17,7 @@ export default function HairCatalog() {
   const [agreed, setAgreed] = useState(false);
 
   const isComplete = specFields.every((f) => specs[f.key] !== null);
-  const price = pricing.areaSystem + (specs.length === 'Long' ? pricing.longHairExtra : 0);
+  const price = pricing.areaSystem;
 
   function choose(key, value) {
     setSpecs({ ...specs, [key]: value });
@@ -36,6 +36,7 @@ export default function HairCatalog() {
         title="Order your hair system"
         subtitle={`Systems are made to order and arrive at the salon in about ${pricing.shippingDays} days.`}
         image={images.heroResult}
+        imagePosition="center 10%"
       />
 
       <section className="section">
@@ -101,10 +102,6 @@ export default function HairCatalog() {
                 <span>Total</span>
                 <span className="summary__amount">${price}</span>
               </div>
-
-              {specs.length === 'Long' && pricing.longHairExtra === 0 && (
-                <p className="notice notice--info"><Info size={16} /> Long hair may cost more. We'll confirm before ordering.</p>
-              )}
 
               <label className="checkbox">
                 <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />

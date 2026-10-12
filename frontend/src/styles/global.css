@@ -92,8 +92,8 @@ ul { list-style: none; }
 
 /*  Forms  */
 .form { display: grid; gap: var(--space-4); }
-.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); }
-.field { display: grid; gap: 6px; }
+.form-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
+.field { display: grid; gap: 6px; align-content: start; }
 .field label { font-size: 0.82rem; font-weight: 500; }
 .field input,
 .field select,
@@ -117,7 +117,7 @@ ul { list-style: none; }
 .checkbox { display: flex; gap: var(--space-3); align-items: flex-start; font-size: 0.88rem; cursor: pointer; }
 .checkbox input { margin-top: 3px; accent-color: var(--gold-dark); width: 16px; height: 16px; flex-shrink: 0; }
 
-/* ---------- Notices ---------- */
+/*  Notices  */
 .notice {
   display: flex;
   gap: var(--space-3);
@@ -150,8 +150,10 @@ ul { list-style: none; }
 .badge--info { background: var(--info-bg); color: var(--info); }
 
 @media (max-width: 640px) {
-  .form-row { grid-template-columns: 1fr; }
+  .form-row { grid-template-columns: minmax(0, 1fr); }
   .section { padding: var(--space-8) 0; }
+  .container { padding: 0 var(--space-4); }
+  .field input, .field select, .field textarea, .search input, .add-row input { font-size: 16px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

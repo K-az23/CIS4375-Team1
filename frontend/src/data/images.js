@@ -1,19 +1,24 @@
+// Photos live in the S3 bucket. Set VITE_IMAGE_BASE_URL in the .env file, e.g.
+//   VITE_IMAGE_BASE_URL=https://your-bucket.s3.us-east-2.amazonaws.com/images
+const BASE = (import.meta.env.VITE_IMAGE_BASE_URL || '/images').replace(/\/$/, '');
+const img = (file) => `${BASE}/${file}`;
+
 export const images = {
-  logoGold: '/images/logo-gold.png', // for dark backgrounds (navbar, footer, sidebar)
-  logo: '/images/logo.png', // for light backgrounds
+  logoGold: img('logo-gold.png'), 
+  logo: img('logo.png'), 
 
-  heroResult: '/images/hero-hair-system-result.jpg',
-  beforeAfter1: '/images/before-after-1.jpg',
-  beforeAfter2: '/images/before-after-2.jpg',
-  stylist: '/images/stylist.jpg',
+  heroResult: img('hero-hair-system-result.jpg'),
+  beforeAfter1: img('before-after-1.jpg'),
+  beforeAfter2: img('before-after-2.jpg'),
+  stylist: img('stylist.jpg'),
 
-  salonChair: '/images/salon-chair.jpg',
-  salonLounge: '/images/salon-lounge.jpg',
-  reserveSign: '/images/reserve-sign.jpg',
-  reserveLobby: '/images/reserve-lobby.jpg',
+  salonChair: img('salon-chair.jpg'),
+  salonLounge: img('salon-lounge.jpg'),
+  reserveSign: img('reserve-sign.jpg'),
+  reserveLobby: img('reserve-lobby.jpg'),
 
-  mensFade: '/images/mens-fade.jpg',
-  mensCutProfile: '/images/mens-cut-profile.jpg',
-  beardTrim: '/images/beard-trim.jpg',
-  womensCut: '/images/womens-cut.jpg',
+  mensFade: img('mens-fade.jpg'),
+  mensCutProfile: img('mens-cut-profile.jpg'),
+  beardTrim: img('beard-trim.jpg'),
+  womensCut: img('womens-cut.jpg'),
 };
