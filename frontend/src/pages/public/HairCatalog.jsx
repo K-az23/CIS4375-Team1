@@ -36,6 +36,7 @@ export default function HairCatalog() {
         title="Order your hair system"
         subtitle={`Systems are made to order and arrive at the salon in about ${pricing.shippingDays} days.`}
         image={images.heroResult}
+        imagePosition="center 10%"
       />
 
       <section className="section">
