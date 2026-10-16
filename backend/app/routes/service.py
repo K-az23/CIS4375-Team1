@@ -48,3 +48,32 @@ def create_service():
     db.session.add(service)
     db.session.commit()
     return jsonify(service=service.to_admin_dict()), 201 
+
+@admin_service_bp.patch("/<service_id>")
+def update_service(service_id):
+    # TODO: restrict to admins with @role_required("admin") once login (AUTH-02) exists
+    service = db.session.get(Service, service_id)
+    if service is None:
+        return jsonify(error="Service not found"), 404
+
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify(error="Request body must be a JSON object"), 400
+
+    fields, errors = validate_service_data(data, partial=True)
+    if errors:
+        return jsonify(error="Validation failed", details=errors), 400
+    if not fields:
+        return jsonify(
+            error="No editable fields sent: use service_name, duration_minutes, or price"
+        ), 400
+
+    if "service_name" in fields and service_name_taken(
+        fields["service_name"], exclude_service_id=service.service_id
+    ):
+        return jsonify(error="A service with this name already exists"), 409
+
+    for name, value in fields.items():
+        setattr(service, name, value)
+    db.session.commit()
+    return jsonify(service=service.to_admin_dict())

@@ -110,11 +110,15 @@ AVAILABLE ENDPOINTS
 ----------------------------------------------------------------------
 Only endpoints listed here are built and ready to connect.
 
-GET /api/services                 SVC-01  List bookable services (public)
-GET /api/services/<service_id>    SVC-02  Get one bookable service (public)
-                                          404 if the service doesn't exist
-GET /api/admin/services           SVC-03  List all services with admin details (admin)
-                                          Admin login not enforced yet
-POST /api/admin/services          SVC-04  Create a service (admin)
-                                          Body: service_name, duration_minutes, price
-                                          Admin login not enforced yet
+GET /api/services                         SVC-01  List bookable services (public)
+GET /api/services/<service_id>            SVC-02  Get one bookable service (public)
+                                                  404 if the service doesn't exist
+GET /api/admin/services                   SVC-03  List all services with admin details (admin)
+                                                  Admin login not enforced yet
+POST /api/admin/services                  SVC-04  Create a service (admin)
+                                                  Body: service_name, duration_minutes, price
+                                                  Admin login not enforced yet
+PATCH /api/admin/services/<service_id>    SVC-05  Edit a service (admin)
+                                                  Send only the fields being changed:
+                                                  service_name, duration_minutes, price
+                                                  Admin login not enforced yet
