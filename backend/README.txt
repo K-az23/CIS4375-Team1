@@ -138,6 +138,7 @@ API ENDPOINTS (IMPLEMENTED)
 ----------------------------------------------------------------------
 Full specification: CIS4375_API_Workbook.xlsx
 
-GET /api/health        Server is running
-GET /api/health/db     Database connection works
-GET /api/services      SVC-01  List bookable services (public)
+GET /api/health                   Server is running
+GET /api/health/db                Database connection works
+GET /api/services                 SVC-01  List bookable services (public)
+GET /api/services/<service_id>    SVC-02  Get one bookable service (public)
