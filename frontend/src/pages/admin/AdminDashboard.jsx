@@ -39,14 +39,15 @@ export default function AdminDashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const needsAction = hairOrders.filter((o) => ['Pending', 'Invoice sent'].includes(o.status));
-  const lowStock = inventoryItems.filter((i) => i.qty <= i.threshold);
+  const lowStock = inventoryItems.filter((i) => i.inUse && i.qty <= i.threshold);
   const todaySales = weeklySales.find((d) => d.today)?.value ?? 0;
 
   return (
     <>
       <DashboardHeader
         eyebrow="Owner dashboard"
-        title={`${greeting()}, ${user?.firstName || 'Admin'}`}        subtitle={`Here's what's happening at ${business.name} today.`}
+        title={`${greeting()}, ${user?.firstName || 'Admin'}`}
+        subtitle={`Here's what's happening at ${business.name} today.`}
         showIcons
       />
 

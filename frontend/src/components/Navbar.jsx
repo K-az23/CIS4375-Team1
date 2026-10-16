@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
-import { Menu, X, Bell, User } from 'lucide-react';
+import { Menu, X, User } from 'lucide-react';
 import Logo from './Logo';
 import { useAuth } from '../context/useAuth.js';
 import { homeFor } from '../context/authUtils.js';
@@ -59,9 +59,6 @@ export default function Navbar({ variant = 'public' }) {
           )}
           {variant === 'account' && (
             <div className="navbar__actions">
-              <button className="navbar__icon" aria-label="Notifications">
-                <Bell size={20} />
-              </button>
               <Link to="/account/settings" className="navbar__icon" aria-label="My account" onClick={close}>
                 <User size={22} />
               </Link>

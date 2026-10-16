@@ -6,7 +6,8 @@ import { weeklySales, inventoryItems, customers, money } from '../../data/sample
 
 export default function Reports() {
   const revenue = weeklySales.reduce((sum, d) => sum + d.value, 0);
-  const lowCount = inventoryItems.filter((i) => i.qty <= i.threshold).length;
+  const inUse = inventoryItems.filter((i) => i.inUse);
+  const lowCount = inUse.filter((i) => i.qty <= i.threshold).length;
   const average = Math.round(customers.reduce((sum, c) => sum + c.totalSpent, 0) / customers.length);
   const topCustomers = [...customers].sort((a, b) => b.totalSpent - a.totalSpent);
 
@@ -22,8 +23,8 @@ export default function Reports() {
           <div className="stat-card__value">{money(revenue)}</div>
         </div>
         <div className="card">
-          <div className="stat-card__label">Inventory items at reorder level</div>
-          <div className="stat-card__value">{lowCount} of {inventoryItems.length}</div>
+          <div className="stat-card__label">Products running low</div>
+          <div className="stat-card__value">{lowCount} of {inUse.length}</div>
         </div>
         <div className="card">
           <div className="stat-card__label">Average spend per customer</div>

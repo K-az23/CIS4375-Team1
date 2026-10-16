@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Bell, Settings } from 'lucide-react';
+import { Settings } from 'lucide-react';
 
 export default function DashboardHeader({ eyebrow, title, subtitle, showIcons = false, children }) {
   return (
@@ -12,10 +12,7 @@ export default function DashboardHeader({ eyebrow, title, subtitle, showIcons = 
       <div className="dash-header__right">
         {children}
         {showIcons && (
-          <>
-            <button className="icon-btn" aria-label="Notifications"><Bell size={20} /></button>
-            <Link to="/admin/settings" className="icon-btn" aria-label="Settings"><Settings size={20} /></Link>
-          </>
+          <Link to="/admin/settings" className="icon-btn" aria-label="Settings"><Settings size={20} /></Link>
         )}
       </div>
     </div>

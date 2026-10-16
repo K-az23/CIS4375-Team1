@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Check } from 'lucide-react';
+import { Plus, Minus, Check } from 'lucide-react';
 import DashboardHeader from '../../components/DashboardHeader';
 import Panel from '../../components/Panel';
 import DataTable from '../../components/DataTable';
@@ -11,10 +11,17 @@ const categories = ['Adhesive', 'Supplies', 'Hair care', 'Styling', 'Color', 'Ot
 const emptyItem = { type: 'per-use', category: '', name: '', brand: '', size: '', qty: '', threshold: '', cost: '' };
 
 const tabs = [
-  { value: 'per-use', label: 'Hair replacement supplies', hint: 'Logged per appointment on the Checkout page and deducted automatically.', match: (i) => i.type === 'per-use' },
-  { value: 'bulk', label: 'Hair care & styling', hint: 'Not tied to appointments. Mark one used when a bottle runs out.', match: (i) => i.type === 'bulk' && i.category !== 'Color' },
-  { value: 'color', label: 'Color', hint: 'One row per shade. Mark one used when a tube runs out.', match: (i) => i.category === 'Color' },
+  { value: 'per-use', label: 'Hair replacement supplies', hint: 'Glue, tape and gloves. Products in use show up on the Checkout page.', match: (i) => i.type === 'per-use' },
+  { value: 'bulk', label: 'Hair care & styling', hint: 'Shampoo, conditioner and styling products.', match: (i) => i.type === 'bulk' && i.category !== 'Color' },
+  { value: 'color', label: 'Color', hint: 'One row per shade.', match: (i) => i.category === 'Color' },
 ];
+
+function statusFor(item) {
+  if (!item.inUse) return 'Not in use';
+  if (item.qty === 0) return 'Out';
+  if (item.qty <= item.threshold) return 'Low';
+  return 'In stock';
+}
 
 export default function Inventory() {
   const [items, setItems] = useState(inventoryItems);
@@ -23,9 +30,13 @@ export default function Inventory() {
   const [newItem, setNewItem] = useState(emptyItem);
   const [message, setMessage] = useState('');
 
-  function updateQty(id, change, note) {
-    setItems(items.map((i) => (i.id === id ? { ...i, qty: Math.max(0, i.qty + change) } : i)));
-    setMessage(note);
+  function setQty(id, value) {
+    const qty = Math.max(0, Math.floor(Number(value) || 0));
+    setItems(items.map((i) => (i.id === id ? { ...i, qty } : i)));
+  }
+
+  function toggleInUse(id) {
+    setItems(items.map((i) => (i.id === id ? { ...i, inUse: !i.inUse } : i)));
   }
 
   function update(e) {
@@ -40,9 +51,9 @@ export default function Inventory() {
       brand: newItem.brand,
       category: newItem.category,
       type: newItem.type,
-      qty: Number(newItem.qty),
-      threshold: Number(newItem.threshold),
-      lastOrderQty: Number(newItem.qty) || 10,
+      qty: Number(newItem.qty) || 0,
+      threshold: Number(newItem.threshold) || 0,
+      inUse: true,
       cost: newItem.cost === '' ? null : Number(newItem.cost),
     }]);
     setTab(newItem.category === 'Color' ? 'color' : newItem.type);
@@ -52,29 +63,44 @@ export default function Inventory() {
   }
 
   const columns = [
-    { key: 'name', label: 'Item' },
-    { key: 'category', label: 'Category' },
-    { key: 'qty', label: 'On hand', align: 'right' },
-    { key: 'threshold', label: 'Reorder at', align: 'right' },
-    { key: 'cost', label: 'Cost', align: 'right', render: (r) => money(r.cost) },
-    { key: 'status', label: 'Status', render: (r) => <StatusBadge status={r.qty === 0 ? 'Out' : r.qty <= r.threshold ? 'Low' : 'In stock'} /> },
     {
-      key: 'actions',
-      label: '',
-      align: 'right',
+      key: 'inUse',
+      label: 'In use',
       render: (r) => (
-        <div className="row" style={{ justifyContent: 'flex-end', flexWrap: 'nowrap' }}>
-          {r.type === 'bulk' && (
-            <button className="btn btn-outline btn-sm" onClick={() => updateQty(r.id, -1, `Marked one ${r.name} as used.`)} disabled={r.qty === 0}>
-              Mark one used
-            </button>
-          )}
-          <button className="btn btn-outline btn-sm" onClick={() => updateQty(r.id, r.lastOrderQty, `Re-stocked ${r.lastOrderQty} × ${r.name}.`)}>
-            Re-stock +{r.lastOrderQty}
+        <label className="switch">
+          <input type="checkbox" checked={r.inUse} onChange={() => toggleInUse(r.id)} aria-label={`${r.name} in use`} />
+          <span className="switch__track" aria-hidden="true" />
+        </label>
+      ),
+    },
+    { key: 'name', label: 'Item', render: (r) => <span className={r.inUse ? undefined : 'muted'}>{r.name}</span> },
+    { key: 'category', label: 'Category' },
+    {
+      key: 'qty',
+      label: 'On hand',
+      render: (r) => (
+        <div className="qty qty--input">
+          <button type="button" aria-label={`One less ${r.name}`} onClick={() => setQty(r.id, r.qty - 1)} disabled={r.qty === 0}>
+            <Minus size={14} />
+          </button>
+          <input
+            type="number"
+            min="0"
+            inputMode="numeric"
+            value={r.qty}
+            onChange={(e) => setQty(r.id, e.target.value)}
+            onFocus={(e) => e.target.select()}
+            aria-label={`How many ${r.name} on hand`}
+          />
+          <button type="button" aria-label={`One more ${r.name}`} onClick={() => setQty(r.id, r.qty + 1)}>
+            <Plus size={14} />
           </button>
         </div>
       ),
     },
+    { key: 'threshold', label: 'Low at', align: 'right' },
+    { key: 'cost', label: 'Cost', align: 'right', render: (r) => money(r.cost) },
+    { key: 'status', label: 'Status', nowrap: true, render: (r) => <StatusBadge status={statusFor(r)} /> },
   ];
 
   const currentTab = tabs.find((t) => t.value === tab);
@@ -82,7 +108,7 @@ export default function Inventory() {
 
   return (
     <>
-      <DashboardHeader eyebrow="Stock" title="Inventory" subtitle="You'll get an email when an item reaches its reorder level." showIcons>
+      <DashboardHeader eyebrow="Stock" title="Inventory" subtitle="Update your counts and turn products on or off." showIcons>
         <button className="btn btn-dark btn-sm" onClick={() => setShowForm(!showForm)}>
           <Plus size={16} /> {showForm ? 'Close form' : 'New item'}
         </button>
@@ -96,10 +122,10 @@ export default function Inventory() {
             <form className="form" onSubmit={addItem} style={{ marginTop: 12 }}>
               <div className="form-row">
                 <div className="field">
-                  <label htmlFor="type">How it's used</label>
+                  <label htmlFor="type">Type</label>
                   <select id="type" name="type" value={newItem.type} onChange={update}>
-                    <option value="per-use">Per use – logged at checkout</option>
-                    <option value="bulk">Bulk – mark used when empty</option>
+                    <option value="per-use">Hair replacement supply</option>
+                    <option value="bulk">Hair care, styling or color</option>
                   </select>
                 </div>
                 <div className="field">
@@ -122,21 +148,21 @@ export default function Inventory() {
               </div>
               <div className="form-row">
                 <div className="field">
-                  <label htmlFor="size">Size</label>
-                  <input id="size" name="size" placeholder="e.g. 100ml or 6A (optional)" value={newItem.size} onChange={update} />
+                  <label htmlFor="size">Size or shade (optional)</label>
+                  <input id="size" name="size" placeholder="e.g. 100ml or 6A" value={newItem.size} onChange={update} />
                 </div>
                 <div className="field">
-                  <label htmlFor="cost">Cost ($)</label>
+                  <label htmlFor="cost">Cost ($, optional)</label>
                   <input id="cost" name="cost" type="number" min="0" step="0.01" value={newItem.cost} onChange={update} />
                 </div>
               </div>
               <div className="form-row">
                 <div className="field">
-                  <label htmlFor="qty">Starting quantity</label>
+                  <label htmlFor="qty">How many you have</label>
                   <input id="qty" name="qty" type="number" min="0" required value={newItem.qty} onChange={update} />
                 </div>
                 <div className="field">
-                  <label htmlFor="threshold">Reorder at</label>
+                  <label htmlFor="threshold">Show as low at</label>
                   <input id="threshold" name="threshold" type="number" min="0" required value={newItem.threshold} onChange={update} />
                 </div>
               </div>

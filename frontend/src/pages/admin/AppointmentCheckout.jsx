@@ -6,7 +6,7 @@ import StatusBadge from '../../components/StatusBadge';
 import { allServices, serviceCategories, priceToNumber } from '../../data/services';
 import { todaysAppointments, inventoryItems, usageHistory, usualUsageByService, money } from '../../data/sampleData';
 
-const perUseItems = inventoryItems.filter((i) => i.type === 'per-use');
+const perUseItems = inventoryItems.filter((i) => i.type === 'per-use' && i.inUse);
 const hairSystemServices = serviceCategories.find((c) => c.id === 'systems').services.map((s) => s.name);
 const NO_SHOW_FEE = 50;
 
@@ -36,7 +36,7 @@ function startState(appt) {
 export default function AppointmentCheckout() {
   const [selectedId, setSelectedId] = useState(todaysAppointments[0].id);
   const [form, setForm] = useState(startState(todaysAppointments[0]));
-  const [done, setDone] = useState({}); 
+  const [done, setDone] = useState({}); // { appointmentId: 'Paid' | 'No-show' }
   const [message, setMessage] = useState('');
 
   const appt = todaysAppointments.find((a) => a.id === selectedId);

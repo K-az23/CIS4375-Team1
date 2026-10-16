@@ -1,7 +1,3 @@
-// FAKE data so every page has something to show.
-
-/*  Logged-in customer  */
-
 export const currentCustomer = {
   firstName: 'John',
   lastName: 'Smith',
@@ -69,30 +65,32 @@ export const hairOrders = [
   { id: '#1018', customer: 'John Smith', type: 'Custom', specs: '#2 · 10% · Medium · 7 x 9', amount: 650, date: 'Aug 14, 2026', status: 'Received' },
 ];
 
+
 let nextId = 1;
-const item = (name, brand, category, type, qty, threshold, lastOrderQty) => ({
-  id: nextId++, name, brand, category, type, qty, threshold, lastOrderQty, cost: null,
+const item = (name, brand, category, type, qty, threshold) => ({
+  id: nextId++, name, brand, category, type, qty, threshold, inUse: true, cost: null,
 });
 
 const demiShades = ['1N', '2N', '3N', '4N', '5N', '6N', '7N', '8N', '6A'];
 const ruskShades = ['1N', '2N', '3N', '4N', '5N', '6N', '7N', '8N'];
 
 export const inventoryItems = [
-  item('Mighty Tight Ultra Hold Glue', 'Mighty Tight', 'Adhesive', 'per-use', 3, 2, 6),
-  item('Ultra Hold Tape', 'Ultra Hold', 'Adhesive', 'per-use', 40, 20, 72),
-  item('Poly Fuse Glue', 'Poly Fuse', 'Adhesive', 'per-use', 4, 2, 6),
-  item('Disposable Gloves – Small', 'Generic', 'Supplies', 'per-use', 2, 4, 10),
+  item('Mighty Tight Ultra Hold Glue', 'Mighty Tight', 'Adhesive', 'per-use', 3, 2),
+  item('Ultra Hold Tape', 'Ultra Hold', 'Adhesive', 'per-use', 40, 20),
+  item('Poly Fuse Glue', 'Poly Fuse', 'Adhesive', 'per-use', 4, 2),
+  item('Disposable Gloves – Small', 'Generic', 'Supplies', 'per-use', 2, 4),
 
-  item('Kenra Shampoo', 'Kenra', 'Hair care', 'bulk', 5, 1, 6),
-  item('Kenra Conditioner', 'Kenra', 'Hair care', 'bulk', 3, 1, 6),
-  item('Kenra Hairspray', 'Kenra', 'Styling', 'bulk', 4, 1, 6),
-  item('Kenra Mousse', 'Kenra', 'Styling', 'bulk', 1, 1, 4),
-  item('Paul Mitchell Shampoo', 'Paul Mitchell', 'Hair care', 'bulk', 3, 1, 6),
-  item('Paul Mitchell Conditioner', 'Paul Mitchell', 'Hair care', 'bulk', 2, 1, 6),
+  item('Kenra Shampoo', 'Kenra', 'Hair care', 'bulk', 5, 1),
+  item('Kenra Conditioner', 'Kenra', 'Hair care', 'bulk', 3, 1),
+  item('Kenra Hairspray', 'Kenra', 'Styling', 'bulk', 4, 1),
+  item('Kenra Mousse', 'Kenra', 'Styling', 'bulk', 1, 1),
+  item('Paul Mitchell Shampoo', 'Paul Mitchell', 'Hair care', 'bulk', 3, 1),
+  item('Paul Mitchell Conditioner', 'Paul Mitchell', 'Hair care', 'bulk', 2, 1),
 
-  ...demiShades.map((shade, i) => item(`Paul Mitchell The Demi ${shade}`, 'Paul Mitchell', 'Color', 'bulk', i === 5 ? 1 : 2, 1, 3)),
-  ...ruskShades.map((shade, i) => item(`Rusk Color ${shade}`, 'Rusk', 'Color', 'bulk', i === 3 ? 0 : 2, 1, 3)),
+  ...demiShades.map((shade, i) => item(`Paul Mitchell The Demi ${shade}`, 'Paul Mitchell', 'Color', 'bulk', i === 5 ? 1 : 2, 1)),
+  ...ruskShades.map((shade, i) => item(`Rusk Color ${shade}`, 'Rusk', 'Color', 'bulk', i === 3 ? 0 : 2, 1)),
 ];
+
 
 export const usageHistory = {
   'John Smith|Hair System Service': [{ itemId: 1, qty: 1 }, { itemId: 2, qty: 4 }, { itemId: 4, qty: 2 }],
