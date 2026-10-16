@@ -1,0 +1,113 @@
+API GUIDE (FOR FRONTEND DEVELOPERS)
+
+PURPOSE
+How the React frontend connects to the Flask backend: where requests
+go, what comes back, and how to set up your computer to test it.
+For how the backend itself is built, see backend/README.txt.
+
+HOW IT FITS TOGETHER
+----------------------------------------------------------------------
+React page or component
+  -> function in frontend/src/services/  (the only place that calls
+                                          the API; pages never call
+                                          fetch directly)
+  -> Flask backend at VITE_API_URL
+  -> MySQL database (or Setmore)
+  -> JSON back to React
+
+The frontend never talks to the database or Setmore directly.
+
+WHERE TO CONNECT
+----------------------------------------------------------------------
+Base URL (local):    http://localhost:5000/api
+Base URL (deployed): TBD once the backend is on AWS
+
+Set it in frontend/.env:
+  VITE_API_URL=http://localhost:5000/api
+
+Every request in frontend/src/services/ builds its URL from
+import.meta.env.VITE_API_URL. Never hardcode the address, so switching
+to the deployed backend later only means changing this one line.
+
+Example:
+  const res = await fetch(`${import.meta.env.VITE_API_URL}/services`);
+  const data = await res.json();      // { services: [ ... ] }
+
+RUNNING THE BACKEND LOCALLY
+----------------------------------------------------------------------
+To test against real data, the backend must be running on your
+computer at the same time as the frontend:
+
+1. Follow FIRST-TIME SETUP in backend/README.txt (Python, venv,
+   packages). You need a backend/.env with database credentials
+   (ask the database manager privately, never in the group chat)
+   and your IP added to the RDS security group.
+2. Open two terminals:
+     Terminal 1 (backend):   cd backend
+                             venv\Scripts\Activate.ps1
+                             python run.py
+     Terminal 2 (frontend):  cd frontend
+                             npm run dev
+3. Check the backend works: http://localhost:5000/api/health
+   should show {"status": "ok"}.
+
+REQUEST AND RESPONSE RULES
+----------------------------------------------------------------------
+Full details for every endpoint (inputs, example responses, errors,
+and rules) are in CIS4375_API_Workbook.xlsx:
+  - Priority Overview: every endpoint and its status. Only connect
+    to endpoints marked Done.
+  - Conventions: error format, status codes, dates, money.
+  - Object Shapes: every field and its type.
+  - One sheet per area (Services, Auth, Users, ...).
+
+The short version:
+  - Everything is JSON.
+  - One record comes back under a singular key:  { "service": {...} }
+  - A list comes back under a plural key:        { "services": [...] }
+  - Errors always look like:                     { "error": "message" }
+    so you can show the message to the user.
+  - Money and quantities are numbers (120.0), not strings.
+  - Dates are ISO 8601 in UTC: "2026-10-15T10:28:00Z"
+  - Field names are snake_case: service_name, duration_minutes.
+
+STATUS CODES TO HANDLE
+----------------------------------------------------------------------
+  200 / 201  Success
+  400        Invalid input; show the error (and "details" if present)
+  401        Not logged in or login expired; send the user to Login
+  403        Wrong role; show a "no permission" message
+  404        Not found
+  409        Duplicate (e.g. email already registered)
+  500        Server problem; show a generic "try again" message
+
+LOGIN
+----------------------------------------------------------------------
+Pending the session vs. token decision. Until then, only public
+endpoints (such as GET /api/services) can be connected. This section
+will be updated with how to send the login with each request.
+
+TROUBLESHOOTING
+----------------------------------------------------------------------
+CORS error in the browser console
+  The backend only accepts requests from the address in
+  backend/.env CLIENT_URL (default http://localhost:5173, Vite's
+  default port). If your React app runs on a different port, update
+  CLIENT_URL to match and restart the backend.
+
+"Failed to fetch" / connection refused
+  The backend isn't running. Start it (Terminal 1 above).
+
+/api/health works but /api/health/db shows an error
+  The backend can't reach the database. Check backend/.env and that
+  your current IP is in the RDS security group (home and campus IPs
+  are different, so you may need both).
+
+Changes to .env not taking effect
+  Restart the server. Both Vite and Flask only read .env at startup.
+
+AVAILABLE ENDPOINTS
+----------------------------------------------------------------------
+Only endpoints listed here are built and ready to connect.
+
+GET /api/services      SVC-01  List bookable services (public)

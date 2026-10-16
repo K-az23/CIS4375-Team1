@@ -3,8 +3,9 @@ from flask_cors import CORS
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.config import Config
-from app.extensions import db
+from .config import Config
+from .extensions import db
+from .routes import register_blueprints
 
 
 def create_app():
@@ -12,6 +13,7 @@ def create_app():
     app.config.from_object(Config)
     CORS(app, origins=[app.config["CLIENT_URL"]])
     db.init_app(app)
+    register_blueprints(app)
 
     @app.get("/api/health")
     def health():
