@@ -20,3 +20,8 @@ class Service(db.Model):
             # the API returns money as a number.
             "price": float(self.price) if self.price is not None else None,
         }
+
+    def to_admin_dict(self):
+        # Matches the public version until is_active and setmore_service_id
+        # are added to the table; admins will see both, the public won't.
+        return self.to_public_dict()

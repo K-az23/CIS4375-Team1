@@ -4,7 +4,7 @@ from ..extensions import db
 from ..models import Service
 
 service_bp = Blueprint("service", __name__)
-
+admin_service_bp = Blueprint("admin_service", __name__)
 
 @service_bp.get("")
 def list_services():
@@ -20,3 +20,11 @@ def get_service(service_id):
     if service is None:
         return jsonify(error="Service not found"), 404
     return jsonify(service=service.to_public_dict())
+
+@admin_service_bp.get("")
+def list_admin_services():
+    # TODO: restrict to admins with @role_required("admin") once login (AUTH-02) exists
+    # TODO: hide inactive services unless ?include_inactive=true, once is_active exists
+    query = db.select(Service).order_by(Service.service_name)
+    services = db.session.execute(query).scalars().all()
+    return jsonify(services=[service.to_admin_dict() for service in services])
