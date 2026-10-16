@@ -113,6 +113,8 @@ DAILY USE
                        http://localhost:5000/api/health/db
 - Before pushing:      ruff check .      (ruff check . --fix to auto-fix)
 - Leave the venv:      deactivate
+- Test endpoints:      open backend/requests/<resource>.http in VS Code
+                       (REST Client extension) and click Send Request
 
 ADDING A PACKAGE
 ----------------------------------------------------------------------
@@ -143,3 +145,4 @@ GET /api/health/db                Database connection works
 GET /api/services                 SVC-01  List bookable services (public)
 GET /api/services/<service_id>    SVC-02  Get one bookable service (public)
 GET /api/admin/services           SVC-03  List all services with admin details (admin)
+POST /api/admin/services          SVC-04  Create a service (admin)
