@@ -1,8 +1,8 @@
 from flask import Blueprint, jsonify, request
 
 from ..extensions import db
-from ..models import Service
 from ..logic.service import new_service_id, service_name_taken, validate_service_data
+from ..models import Service
 
 service_bp = Blueprint("service", __name__)
 admin_service_bp = Blueprint("admin_service", __name__)
