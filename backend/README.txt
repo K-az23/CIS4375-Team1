@@ -142,3 +142,4 @@ GET /api/health                   Server is running
 GET /api/health/db                Database connection works
 GET /api/services                 SVC-01  List bookable services (public)
 GET /api/services/<service_id>    SVC-02  Get one bookable service (public)
+GET /api/admin/services           SVC-03  List all services with admin details (admin)
