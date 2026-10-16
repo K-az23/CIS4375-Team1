@@ -110,4 +110,6 @@ AVAILABLE ENDPOINTS
 ----------------------------------------------------------------------
 Only endpoints listed here are built and ready to connect.
 
-GET /api/services      SVC-01  List bookable services (public)
+GET /api/services                 SVC-01  List bookable services (public)
+GET /api/services/<service_id>    SVC-02  Get one bookable service (public)
+                                          404 if the service doesn't exist
