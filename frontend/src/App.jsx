@@ -13,6 +13,7 @@ import About from './pages/public/About';
 import Services from './pages/public/Services';
 import HairCatalog from './pages/public/HairCatalog';
 import Checkout from './pages/public/Checkout';
+import OrderConfirmation from './pages/public/OrderConfirmation';
 import Memberships from './pages/public/Memberships';
 import Contact from './pages/public/Contact';
 import Login from './pages/public/Login';
@@ -61,6 +62,7 @@ export default function App() {
             <Route path="/services" element={<Services />} />
             <Route path="/hair-catalog" element={<HairCatalog />} />
             <Route path="/checkout" element={<Checkout />} />
+            <Route path="/order-confirmed" element={<OrderConfirmation />} />
             <Route path="/memberships" element={<Memberships />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/login" element={<Login />} />

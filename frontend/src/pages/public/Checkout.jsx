@@ -1,6 +1,5 @@
-import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Lock, Check } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Lock } from 'lucide-react';
 import PageHero from '../../components/PageHero';
 import SpecList from '../../components/SpecList';
 import { specFields, formatSpec, pricing } from '../../data/hairOptions';
@@ -8,8 +7,8 @@ import { money } from '../../data/sampleData';
 
 export default function Checkout() {
   const { state } = useLocation();
+  const navigate = useNavigate();
   const order = state?.order;
-  const [paid, setPaid] = useState(false);
 
   if (!order) {
     return (
@@ -24,7 +23,11 @@ export default function Checkout() {
   }
 
   function handlePay() {
-    setPaid(true);
+    const now = new Date();
+    navigate('/order-confirmed', {
+      replace: true,
+      state: { order, orderNumber: `EP-${String(now.getTime()).slice(-6)}`, paidAt: now.toISOString() },
+    });
   }
 
   return (
@@ -45,18 +48,12 @@ export default function Checkout() {
 
             <div className="card stack">
               <h3>Payment</h3>
-              {paid ? (
-                <p className="notice"><Check size={16} /> Payment received. We'll text you when your system arrives at the salon.</p>
-              ) : (
-                <>
-                  <div id="stripe-checkout" className="embed-placeholder">
-                    <Lock size={20} />
-                    <strong>Secure Stripe checkout</strong>
-                    <span>The card form appears here once the payment server is connected.</span>
-                  </div>
-                  <button className="btn btn-dark btn-block" onClick={handlePay}>Pay {money(order.price)}</button>
-                </>
-              )}
+              <div id="stripe-checkout" className="embed-placeholder">
+                <Lock size={20} />
+                <strong>Secure Stripe checkout</strong>
+                <span>The card form appears here once the payment server is connected.</span>
+              </div>
+              <button className="btn btn-dark btn-block" onClick={handlePay}>Pay {money(order.price)}</button>
             </div>
           </div>
 
