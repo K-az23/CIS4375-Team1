@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowRight } from 'lucide-react';
 import PageHero from '../../components/PageHero';
 import ServiceTabs from '../../components/ServiceTabs';
@@ -6,10 +6,41 @@ import ServiceList from '../../components/ServiceList';
 import { serviceCategories } from '../../data/services';
 import { business } from '../../data/business';
 import { images } from '../../data/images';
+import { getServices } from '../../services/services';
 
 export default function Services() {
   const [tab, setTab] = useState(serviceCategories[0].id);
   const category = serviceCategories.find((c) => c.id === tab);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  // Check that this page can get services from the backend.
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadServices() {
+      try {
+        await getServices({
+          signal: controller.signal,
+        });
+
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          setError(error.message);
+        }
+      } finally {
+        // Stop showing the loading message after the request finishes.
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadServices();
+
+    // Stop the request when the visitor leaves the page.
+    return () => controller.abort();
+  }, []);
 
   return (
     <>
@@ -31,6 +62,13 @@ export default function Services() {
             </div>
             <h2 style={{ marginBottom: 4 }}>{category.heading}</h2>
             <p className="muted" style={{ marginBottom: 24 }}>{category.intro}</p>
+            {loading && <p role="status">Loading services...</p>}
+
+            {error && (
+              <p role="alert" className="notice notice--warning">
+                {error}
+              </p>
+            )}
             <ServiceList services={category.services} />
             {category.photos && (
               <div className={`photo-row ${category.photoShape === 'wide' ? 'photo-row--wide' : ''}`}>
