@@ -58,6 +58,17 @@ class User(db.Model):
     def to_dict(self):
         return {
             "user_id": self.user_id,
+            "first_name": self.first_name,
+            "last_name": self.last_name,
+            "email": self.email,
+            "phone": self.phone,
+            "is_member": self.is_member,
+        }
+
+    def to_admin_dict(self):
+        # used for admin side
+        return{
+            "user_id": self.user_id,
             "role": self.role.name if self.role else None,
             "first_name": self.first_name,
             "last_name": self.last_name,
