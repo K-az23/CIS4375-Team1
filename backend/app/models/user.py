@@ -20,7 +20,7 @@ class User(db.Model):
 
     last_name = db.Column(db.String(100), nullable=False,)
 
-    email = db.Column(db.string(150), nullable=False, unique=True,)
+    email = db.Column(db.string(255), nullable=False, unique=True,)
 
     phone = db.Column(db.String(20), nullable=False, unique=True,)
 
@@ -32,9 +32,11 @@ class User(db.Model):
 
     stripe_customer_id = db.Column(db.String(255),)
 
-    setmore_customer_id = db.Column(db.String(255),)
+    stripe_payment_method_id = db.Column(db.String(255),)
 
-    setmore_staff_id = db.Column(db.String(255),)
+    setmore_customer_id = db.Column(db.String(100),)
+
+    setmore_staff_id = db.Column(db.String(100),)
 
     is_member = db.Column(db.Boolean, nullable=False,)
 

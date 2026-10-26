@@ -10,6 +10,8 @@ class ItemCategory(db.Model):
 
     description = db.Column(db.String(255),)
 
+    # using boolean to represent tinyint(1),
+    # will let us use True/False insted of 1/0
     is_active = db.Column(db.Boolean, nullable=False,)
 
     # relationship helper; not a database column

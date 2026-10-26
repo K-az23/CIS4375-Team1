@@ -6,7 +6,7 @@ class HairpieceOrder(db.Model):
 
     order_id = db.Column(db.Integer, primary_key=True, autoincrement=True,)
 
-    user_id = db.Column(db.Integer, db.Foreignkey("users.user_id"), nullable=False,)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.user_id"), nullable=False,)
 
     order_type = db.Column(db.String(50), )
 

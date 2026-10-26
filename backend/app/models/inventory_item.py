@@ -12,17 +12,17 @@ class InventoryItem(db.Model):
         nullable=False,
         )
 
-    sku = db.Column(db.String(100), unique=True, )
+    sku = db.Column(db.String(50), unique=True, )
 
     item_name = db.Column(db.String(100), nullable=False,)
 
     brand = db.Column(db.String(100),)
 
-    measurment = db.Column(db.String(100), )
+    measurment = db.Column(db.String(50), )
 
     price = db.Column(db.Numeric(10, 2), )
 
-    item_type = db.Column(db.String(100),)
+    item_type = db.Column(db.String(20),)
 
     quantity_on_hand = db.Column(db.Integer,)
 

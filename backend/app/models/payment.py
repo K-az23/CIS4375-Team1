@@ -11,7 +11,7 @@ class Payment(db.Model):
         db.ForeignKey("appointments.setmore_booking_id"),
         )
 
-    order_id = db.Column(db.Integer, db.Foreignkey("hairpiece_orders.order_id"),)
+    order_id = db.Column(db.Integer, db.ForeignKey("hairpiece_orders.order_id"),)
 
     payment_method = db.Column(db.String(20), nullable=False,)
 
@@ -23,7 +23,7 @@ class Payment(db.Model):
 
     stripe_payment_intent_id = db.Column(db.String(255), unique=True,)
 
-    charged_at = db.Column(db.Datetime,)
+    charged_at = db.Column(db.DateTime,)
 
     # relationship helper
     # allows payment to access the associated appointment

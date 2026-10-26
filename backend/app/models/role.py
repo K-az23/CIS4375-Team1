@@ -6,7 +6,7 @@ class Role(db.Model):
 
     role_id = db.Column(db.Integer, primary_key=True, autoincrement=True,)
 
-    name = db.Column(db.string(20), nullable=False, unique=True,)
+    name = db.Column(db.String(20), nullable=False, unique=True,)
 
     # this will be used as a relationship helper, it is not a db column
     # makes routing easier for pulling user to roles
