@@ -37,6 +37,14 @@ class Appointment(db.Model):
         back_populates="appointment",
     )
 
+    # connects appointments to access the inventory usage records associated
+    usage_logs = db.relationship(
+        "UsageLog",
+        back_populates="appointment",
+    )
+
+
+
     def to_dict(self):
         return {
             "setmore_booking_id": self.setmore_booking_id,

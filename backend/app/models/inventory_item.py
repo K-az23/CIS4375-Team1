@@ -32,12 +32,23 @@ class InventoryItem(db.Model):
 
     is_active = db.Column(db.Boolean, nullable=False, )
 
+
     # helper
     # lets inventory items to access item categories
     category = db.relationship("ItemCategory", back_populates="inventory_items",)
 
     # helper
     # helps inventory items to access service mappings that use that item
+    service_items = db.relationship("ServiceItem", back_populates="inventory_item",)
+
+    # helper
+    # connects inventory item to access all usage records associated with an item'
+    usage_logs = db.relationship("UsageLog", back_populates="inventory_item",)
+
+    # helper
+    # connects inventory items to access all inventory adjustment records per item
+    restock_logs = db.relationship("RestockLog", back_populates="inventory_item",)
+
 
     def to_dict(self):
         return {
