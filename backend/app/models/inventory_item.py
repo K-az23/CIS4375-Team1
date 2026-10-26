@@ -28,7 +28,7 @@ class InventoryItem(db.Model):
 
     reorder_threshold = db.Column(db.Integer, )
 
-    unit = db.Column(db.String(50), nullable=Flase,)
+    unit = db.Column(db.String(50), nullable=False,)
 
     is_active = db.Column(db.Boolean, nullable=False, )
 

@@ -11,6 +11,13 @@ class Service(db.Model):
     duration_minutes = db.Column(db.Integer, nullable=False)
     price = db.Column(db.Numeric(10, 2))
 
+
+    # relationship helper, not a column
+    # simplifies queries by creating ORM navigation options
+    # connects services to all appointments booked per service.
+    appointments = db.relationship("Appointment", back_populates="service",)
+
+
     def to_public_dict(self):
         return {
             "service_id": self.service_id,

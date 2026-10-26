@@ -44,6 +44,12 @@ class User(db.Model):
     # makes routing easier to pull roles from users
     role = db.relationship("Role", back_populates="users",)
 
+    # connects user hairpiece oorders to all hairpiece orders
+    hairpiece_orders = db.relationship("HairpieceOrder", back_populates="user",) 
+
+    # conncets users to all their appointments
+    appointments = db.relationship("Appointment", back_populates="user",)
+
 
     # not dumping every column into JSON such as:
     # password_hash, stripe and setmore id, and stripe payment method
