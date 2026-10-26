@@ -36,6 +36,9 @@ class InventoryItem(db.Model):
     # lets inventory items to access item categories
     category = db.relationship("ItemCategory", back_populates="inventory_items",)
 
+    # helper
+    # helps inventory items to access service mappings that use that item
+
     def to_dict(self):
         return {
             "item_id": self.item_id,

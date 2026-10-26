@@ -17,6 +17,10 @@ class Service(db.Model):
     # connects services to all appointments booked per service.
     appointments = db.relationship("Appointment", back_populates="service",)
 
+    #helper
+    # helps service to access the inventory mappings associated with that service
+    service_items = db.relationship("ServiceItem", back_populates="service",)
+
 
     def to_public_dict(self):
         return {

@@ -35,6 +35,13 @@ class HairpieceOrder(db.Model):
         back_populates="hairpiece_orders",
     )
 
+    # relationshpi helper
+    # connects hairpiece orders to access payments associated
+    payments = db.relationship(
+        "Payment",
+        back_populates="hairpiece_order",
+    )
+
 
     def to_dict(self):
         return{

@@ -31,6 +31,12 @@ class Appointment(db.Model):
         back_populates="appointments",
     )
 
+    # connects appointments to access payments associated
+    user = db.relationship(
+        "Payment",
+        back_populates="appointment",
+    )
+
     def to_dict(self):
         return {
             "setmore_booking_id": self.setmore_booking_id,
