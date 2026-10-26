@@ -15,7 +15,7 @@ class Payment(db.Model):
 
     payment_method = db.Column(db.String(20), nullable=False,)
 
-    amount = db.Column(db.Numeric(10,2), nullable=Flase,)
+    amount = db.Column(db.Numeric(10,2), nullable=False,)
 
     payment_type = db.Column(db.String(50), nullable=False,)
 
