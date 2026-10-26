@@ -44,6 +44,9 @@ class User(db.Model):
     # makes routing easier to pull roles from users
     role = db.relationship("Role", back_populates="users",)
 
+
+    # not dumping every column into JSON such as:
+    # password_hash, stripe and setmore id, and stripe payment method
     def to_dict(self):
         return {
             "user_id": self.user_id,
