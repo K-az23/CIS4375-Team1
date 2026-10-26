@@ -4,7 +4,7 @@ from ..extensions import db
 class Payment(db.Model):
     __tablename__ = "payments"
 
-    payment_id = db.Column(db.Integer, primarykey=True, autoincrement=True,)
+    payment_id = db.Column(db.Integer, primary_key=True, autoincrement=True,)
 
     setmore_booking_id = db.Column(
         db.String(100),

@@ -5,6 +5,7 @@ from .item_category import ItemCategory
 from .payment import Payment
 from .restock_log import RestockLog
 from .role import Role
+from .service import Service
 from .service_item import ServiceItem
 from .usage_log import UsageLog
 from .user import User

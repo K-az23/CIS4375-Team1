@@ -20,7 +20,7 @@ class User(db.Model):
 
     last_name = db.Column(db.String(100), nullable=False,)
 
-    email = db.Column(db.string(255), nullable=False, unique=True,)
+    email = db.Column(db.String(255), nullable=False, unique=True,)
 
     phone = db.Column(db.String(20), nullable=False, unique=True,)
 
@@ -28,7 +28,7 @@ class User(db.Model):
 
     no_show_count = db.Column(db.Integer,)
 
-    created_at = db.Column(db.Datetime,)
+    created_at = db.Column(db.DateTime,)
 
     stripe_customer_id = db.Column(db.String(255),)
 
