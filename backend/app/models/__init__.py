@@ -6,7 +6,6 @@ from .payment import Payment
 from .restock_log import RestockLog
 from .role import Role
 from .service_item import ServiceItem
-from .service import Service
 from .usage_log import UsageLog
 from .user import User
 
@@ -18,8 +17,8 @@ __all__ = [
     "Payment",
     "RestockLog",
     "Role",
-    "ServiceItem",
     "Service",
+    "ServiceItem",
     "UsageLog",
     "User"
     ]

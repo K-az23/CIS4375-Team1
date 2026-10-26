@@ -32,7 +32,7 @@ class Appointment(db.Model):
     )
 
     # connects appointments to access payments associated
-    user = db.relationship(
+    payments = db.relationship(
         "Payment",
         back_populates="appointment",
     )
