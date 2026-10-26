@@ -18,7 +18,7 @@ class InventoryItem(db.Model):
 
     brand = db.Column(db.String(100),)
 
-    measurment = db.Column(db.String(50), )
+    measurement = db.Column(db.String(50), )
 
     price = db.Column(db.Numeric(10, 2), )
 
@@ -57,7 +57,7 @@ class InventoryItem(db.Model):
             "sku": self.sku,
             "item_name": self.item_name,
             "brand": self.brand,
-            "measurement": self.measurment,
+            "measurement": self.measurement,
             "price": float(self.price) if self.price is not None else None,
             "item_type": self.item_type,
             "quantity_on_hand": self.quantity_on_hand,
