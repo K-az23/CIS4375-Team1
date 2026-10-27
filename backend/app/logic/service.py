@@ -1,10 +1,11 @@
 from decimal import Decimal
-from uuid import uuid4
 
 from ..extensions import db
 from ..models import Service
 
 MAX_NAME_LENGTH = 100
+MAX_DESCRIPTION_LENGTH = 255
+MAX_SETMORE_ID_LENGTH = 100
 MAX_DURATION_MINUTES = 600
 MAX_PRICE = Decimal("99999999.99")
 
@@ -12,6 +13,19 @@ MAX_PRICE = Decimal("99999999.99")
 def _is_number(value):
     # bool is a subclass of int in Python, so True would otherwise pass as 1.
     return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _clean_optional_text(data, field, max_length, cleaned, errors):
+    value = data[field]
+    if value is None:
+        cleaned[field] = None
+    elif not isinstance(value, str):
+        errors[field] = "Must be text or null"
+    elif len(value.strip()) > max_length:
+        errors[field] = f"Must be {max_length} characters or fewer"
+    else:
+        # An empty string clears the field, the same as null.
+        cleaned[field] = value.strip() or None
 
 
 def validate_service_data(data, partial=False):
@@ -50,6 +64,22 @@ def validate_service_data(data, partial=False):
             else:
                 cleaned["price"] = amount
 
+    if "description" in data:
+        _clean_optional_text(data, "description", MAX_DESCRIPTION_LENGTH, cleaned, errors)
+
+    if "setmore_service_id" in data:
+        _clean_optional_text(
+            data, "setmore_service_id", MAX_SETMORE_ID_LENGTH, cleaned, errors
+        )
+
+    if "is_active" in data:
+        if not partial:
+            errors["is_active"] = "New services always start active"
+        elif data["is_active"] is not True:
+            errors["is_active"] = "Can only be set to true here; use DELETE to deactivate"
+        else:
+            cleaned["is_active"] = True
+
     return cleaned, errors
 
 
@@ -62,7 +92,8 @@ def service_name_taken(name, exclude_service_id=None):
     return db.session.execute(query).first() is not None
 
 
-def new_service_id():
-    # Temporary: service_id is text with no auto-increment. Delete this once
-    # the database manager changes it to an auto-increment INT.
-    return f"svc-{uuid4().hex[:12]}"
+def setmore_service_id_taken(setmore_id, exclude_service_id=None):
+    query = db.select(Service.service_id).where(Service.setmore_service_id == setmore_id)
+    if exclude_service_id is not None:
+        query = query.where(Service.service_id != exclude_service_id)
+    return db.session.execute(query).first() is not None

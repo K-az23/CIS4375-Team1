@@ -110,15 +110,21 @@ AVAILABLE ENDPOINTS
 ----------------------------------------------------------------------
 Only endpoints listed here are built and ready to connect.
 
-GET /api/services                         SVC-01  List bookable services (public)
-GET /api/services/<service_id>            SVC-02  Get one bookable service (public)
-                                                  404 if the service doesn't exist
-GET /api/admin/services                   SVC-03  List all services with admin details (admin)
-                                                  Admin login not enforced yet
+GET /api/services                         SVC-01  List active services (public)
+GET /api/services/<service_id>            SVC-02  Get one active service (public)
+                                                  404 if missing or inactive
+GET /api/admin/services                   SVC-03  List services with admin fields (admin)
+                                                  ?include_inactive=true to include inactive
 POST /api/admin/services                  SVC-04  Create a service (admin)
-                                                  Body: service_name, duration_minutes, price
-                                                  Admin login not enforced yet
+                                                  Required: service_name, duration_minutes, price
+                                                  Optional: description, setmore_service_id
 PATCH /api/admin/services/<service_id>    SVC-05  Edit a service (admin)
                                                   Send only the fields being changed:
-                                                  service_name, duration_minutes, price
-                                                  Admin login not enforced yet
+                                                  service_name, description, duration_minutes,
+                                                  price, setmore_service_id
+                                                  {"is_active": true} reactivates
+DELETE /api/admin/services/<service_id>   SVC-06  Deactivate a service (admin)
+                                                  Does not delete; hides it from customers
+
+service_id is a number (e.g. /api/services/3).
+Admin login is not enforced yet on /api/admin routes.
