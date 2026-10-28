@@ -20,3 +20,5 @@ class Config:
     CLIENT_URL: ClassVar[str] = os.getenv("CLIENT_URL", "http://localhost:5173")
     SQLALCHEMY_DATABASE_URI: ClassVar[str] = _database_uri()
     SQLALCHEMY_ENGINE_OPTIONS: ClassVar[dict] = {"pool_pre_ping": True, "pool_recycle": 1800}
+    SETMORE_API_BASE_URL = os.getenv("SETMORE_API_BASE_URL", "")
+    SETMORE_REFRESH_TOKEN = os.getenv("SETMORE_REFRESH_TOKEN", "")
