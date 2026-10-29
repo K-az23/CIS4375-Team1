@@ -3,6 +3,7 @@ from flask_cors import CORS
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
+from . import models  # noqa: F401  (registers all models and their relationships with SQLAlchemy)
 from .config import Config
 from .extensions import db
 from .routes import register_blueprints

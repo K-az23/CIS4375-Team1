@@ -147,3 +147,4 @@ GET /api/services/<service_id>            SVC-02  Get one bookable service (publ
 GET /api/admin/services                   SVC-03  List all services with admin details (admin)
 POST /api/admin/services                  SVC-04  Create a service (admin)
 PATCH /api/admin/services/<service_id>    SVC-05  Edit a service (admin)
+DELETE /api/admin/services/<service_id>   SVC-06  Deactivate a service (admin)
