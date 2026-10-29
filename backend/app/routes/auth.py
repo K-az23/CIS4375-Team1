@@ -110,12 +110,11 @@ def login():
     )
 
 # POST /api/auth/logout
-@auth_bp.route("/logout", methods=["POST"])
+@auth_bp.post("/logout")
+@jwt_required()
 def logout():
-    return jsonify({
-        "success": False,
-        "message": "Logout endpoint not implemented yet."
-    }), 501
+    # the frontend should remove the access token, after backend confirms logout request succeeded.
+    return jsonify(message="Logged out successfully")
 
 # POST /api/auth/forgot-password
 @auth_bp.route("/forgot-password", methods=["POST"])

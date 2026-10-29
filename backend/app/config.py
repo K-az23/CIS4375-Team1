@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 from typing import ClassVar
 from urllib.parse import quote_plus
 
@@ -21,3 +22,4 @@ class Config:
     SQLALCHEMY_DATABASE_URI: ClassVar[str] = _database_uri()
     SQLALCHEMY_ENGINE_OPTIONS: ClassVar[dict] = {"pool_pre_ping": True, "pool_recycle": 1800}
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+    JWT_ACCESS_TOKEN_EXPIRES = timedelta(minutes=30) # keeping to 30 min for now, better to change to an hour with refresh mechanism
