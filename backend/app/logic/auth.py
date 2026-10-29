@@ -14,6 +14,7 @@ MIN_PASSWORD_LENGTH = 8
 MAX_PASSWORD_LENGTH = 72
 
 
+# --------- Basic Rules/Validation/Authentication/RBAC
 
 def _clean_required_text(data,field, max_length, cleaned, errors):
     value = data.get(field)
@@ -140,4 +141,29 @@ def get_customer_role():
     # The backend explicityly assiging every new account the customer role.
     query = db.select(Role).where(Role.name == "customer")
 
+    return db.session.execute(query).scalar_one_or_none()
+
+
+# ---------- Login support
+def validate_login_data(data):
+    """Return cleaned login fields and validation errors."""
+    cleaned = {}
+    errors = {}
+
+    email = data.get("email")
+    if not isinstance(email, str) or not email.strip():
+        errors["email"] = "Required"
+    else:
+        cleaned["email"] = _normalize_email(email)
+
+    password = data.get("password")
+    if not isinstance(password, str) or not password:
+        errors["password"] = "Required"
+    else:
+        cleaned["password"] = password
+    return cleaned, errors
+
+# full check for login to be checked after finding thje email
+def get_user_by_email(email):
+    query = db.select(User).where(User.email == email)
     return db.session.execute(query).scalar_one_or_none()

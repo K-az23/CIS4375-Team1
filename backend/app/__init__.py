@@ -7,7 +7,7 @@ from sqlalchemy.exc import SQLAlchemyError
 # and resolve the relationships between the models
 from . import models as models
 from .config import Config
-from .extensions import db
+from .extensions import db, jwt
 from .routes import register_blueprints
 
 
@@ -16,6 +16,7 @@ def create_app():
     app.config.from_object(Config)
     CORS(app, origins=[app.config["CLIENT_URL"]])
     db.init_app(app)
+    jwt.init_app(app)
     register_blueprints(app)
 
     @app.get("/api/health")

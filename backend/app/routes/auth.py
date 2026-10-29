@@ -1,14 +1,17 @@
 from flask import Blueprint, jsonify, request
+from flask_jwt_extended import create_access_token
 from sqlalchemy.exc import SQLAlchemyError
 
 from ..extensions import db
 from ..logic.auth import (
     email_taken,
     get_customer_role,
+    get_user_by_email,
+    validate_login_data,
     validate_registration_data,
 )
 from ..models import User
-from ..utils.auth import hash_password
+from ..utils.auth import check_password, hash_password
 
 auth_bp = Blueprint(
     "auth",
@@ -74,12 +77,37 @@ def register():
      return jsonify(user=user.to_dict()), 201
 
 # POST /api/auth/login
-@auth_bp.route("/login", methods=["POST"])
+@auth_bp.post("/login")
 def login():
-    return jsonify({
-        "success": False,
-        "message": "Login endpoint not implemented yet."
-    }), 501
+    data = request.get_json(silent=True)
+
+    if not isinstance(data, dict):
+        return jsonify(error="Request body must be a JSON"), 400
+
+    fields, errors = validate_login_data(data)
+
+    if errors:
+        return jsonify(
+            error="Validation failed",
+            details=errors,
+        ), 400
+
+    user = get_user_by_email(fields["email"])
+
+    # will give the same response to a not recognized email and/or incorrect passwaord
+    if user is None or not check_password(
+        fields["password"],
+        user.password_hash,
+    ):
+        return jsonify(error="Invalid email or password"), 401
+
+    # Only the user ID is stored as the JWT identity ~ will load current role from DB
+    access_token = create_access_token(identity=str(user.user_id))
+
+    return jsonify(
+        access_token=access_token,
+        user=user.to_dict(),
+    )
 
 # POST /api/auth/logout
 @auth_bp.route("/logout", methods=["POST"])

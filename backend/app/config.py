@@ -20,3 +20,4 @@ class Config:
     CLIENT_URL: ClassVar[str] = os.getenv("CLIENT_URL", "http://localhost:5173")
     SQLALCHEMY_DATABASE_URI: ClassVar[str] = _database_uri()
     SQLALCHEMY_ENGINE_OPTIONS: ClassVar[dict] = {"pool_pre_ping": True, "pool_recycle": 1800}
+    JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
