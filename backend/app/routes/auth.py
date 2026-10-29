@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify, request
-from flask_jwt_extended import create_access_token
+from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_required
 from sqlalchemy.exc import SQLAlchemyError
 
 from ..extensions import db
@@ -134,9 +134,16 @@ def reset_password():
     }), 501
 
 # GET /api/auth/me
-@auth_bp.route("/me", methods=["GET"])
-def get_auth_user():
-    return jsonify({
-        "success": False,
-        "message": "Authenticated user endpoint not implemented yet."
-    }), 501
+@auth_bp.get("/me")
+@jwt_required()
+def get_me():
+    user_id = get_jwt_identity()
+
+    user = db.session.get(User, int(user_id))
+
+    if user is None:
+        return jsonify(error="User not found"), 404
+    if not user.is_active:
+        return jsonify(error="Account is inactive"), 403
+
+    return jsonify(user=user.to_dict())
