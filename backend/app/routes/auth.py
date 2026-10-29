@@ -71,7 +71,7 @@ def register():
         # failure message for clients/users
          return jsonify(error="Unable to create account"),500
 
-     return jsonify(user=user.to_user_dict()), 201
+     return jsonify(user=user.to_dict()), 201
 
 # POST /api/auth/login
 @auth_bp.route("/login", methods=["POST"])
