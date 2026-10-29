@@ -1,3 +1,5 @@
+from sqlalchemy.exc import SQLAlchemyError
+
 from app import create_app
 from app.extensions import db
 from app.models import (
@@ -13,7 +15,6 @@ from app.models import (
     UsageLog,
     User,
 )
-
 
 app = create_app()
 
@@ -44,6 +45,6 @@ with app.app_context():
 
             print(f"PASS: {model.__name__}")
 
-        except Exception as error:
+        except SQLAlchemyError as error:
             print(f"FAIL: {model.__name__}")
             print(error)

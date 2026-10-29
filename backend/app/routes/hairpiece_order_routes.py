@@ -1,6 +1,5 @@
 from flask import Blueprint, jsonify
 
-
 hairpiece_order_bp = Blueprint(
     "hairpiece_orders",
     __name__,

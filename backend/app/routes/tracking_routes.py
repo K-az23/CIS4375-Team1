@@ -1,6 +1,5 @@
 from flask import Blueprint, jsonify
 
-
 purchasing_bp = Blueprint(
     "purchasing",
     __name__,

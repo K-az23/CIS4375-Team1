@@ -1,6 +1,5 @@
 from flask import Blueprint, jsonify
 
-
 admin_user_bp = Blueprint(
     "admin_users",
     __name__,

@@ -1,6 +1,5 @@
 from flask import Blueprint, jsonify
 
-
 item_category_bp = Blueprint(
     "item_categories",
     __name__,

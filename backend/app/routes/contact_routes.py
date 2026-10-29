@@ -1,6 +1,5 @@
 from flask import Blueprint, jsonify
 
-
 contact_bp = Blueprint(
     "contact",
     __name__,
