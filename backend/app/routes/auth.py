@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, current_app, jsonify, request
 from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_required
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -7,16 +7,27 @@ from ..logic.auth import (
     email_taken,
     get_customer_role,
     get_user_by_email,
+    validate_forgot_password_data,
     validate_login_data,
     validate_registration_data,
+    validate_reset_password_data,
 )
 from ..models import User
-from ..utils.auth import check_password, hash_password
+from ..utils.auth import (
+    check_password,
+    create_password_reset_token,
+    hash_password,
+    verify_password_reset_token,
+)
 
 auth_bp = Blueprint(
     "auth",
     __name__,
 )
+
+
+# TBH TO IMPLEMENT: Send password reset link through AWS SES.
+# TBH TO IMPLEMENT: Stop printing reset tokens once SES is connected.
 
 
 
@@ -117,20 +128,68 @@ def logout():
     return jsonify(message="Logged out successfully")
 
 # POST /api/auth/forgot-password
-@auth_bp.route("/forgot-password", methods=["POST"])
+@auth_bp.post("/forgot-password")
 def forgot_password():
-    return jsonify({
-        "success": False,
-        "message": "Forgot password endpoint not implemented yet."
-    }), 501
+    data = request.get_json(silent=True)
+
+    if not isinstance(data, dict):
+        return jsonify(error= "Request body must be JSON"), 400
+    
+    fields, errors = validate_forgot_password_data(data)
+
+    if errors:
+        return jsonify(error="Validation failed", details = errors,), 400
+
+    user = get_user_by_email(fields["email"])
+
+    response = {
+        "message": ("If an account exists for that email, a password reset link has been sent.")
+    }
+
+    if user is None or not user.is_active:
+        return jsonify(response)
+
+    reset_token = create_password_reset_token(user.user_id)
+
+# For testing/development only - checking flow is connected.
+    if current_app.debug:
+        print(f"PASSWORD REST TOKEN for user {user.user_id}:{reset_token}")
+
+    return jsonify(response)
+
 
 # POST /api/auth/reset-password
-@auth_bp.route("/reset-password", methods=["POST"])
+@auth_bp.post("/reset-password")
 def reset_password():
-    return jsonify({
-        "success": False,
-        "message": "Reset password endpoint not implemented yet."
-    }), 501
+    data = request.get_json(silent=True)
+
+    if not isinstance(data, dict):
+        return jsonify(error = "Request body must be JSON"), 400
+
+    fields, errors = validate_reset_password_data(data)
+
+    if errors:
+        return jsonify(error="Validation failed", details= errors,), 400
+
+    user_id = verify_password_reset_token(fields["token"])
+
+    if user_id is None:
+        return jsonify(error="Password reset link is invalid or expired"), 400
+
+    user = db.session.get(User, user_id)
+
+    if user is None or not user.is_active:
+        return jsonify(error="Password reset link is invalid or expired"), 400
+
+    user.password_hash = hash_password(fields["password"])
+
+    try:
+        db.session.commit()
+    except SQLAlchemyError:
+        db.session.rollback()
+        return jsonify(error="Unable to reset password"), 500
+
+    return jsonify(message="Password has successfully been reset!")
 
 # GET /api/auth/me
 @auth_bp.get("/me")

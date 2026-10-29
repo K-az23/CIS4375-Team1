@@ -167,3 +167,46 @@ def validate_login_data(data):
 def get_user_by_email(email):
     query = db.select(User).where(User.email == email)
     return db.session.execute(query).scalar_one_or_none()
+
+
+# ------- Forgot/Reset Password Validation
+
+# checking email submitted for password reset
+def validate_forgot_password_data(data):
+    cleaned = {}
+    errors = {}
+
+    email = data.get("email")
+
+    if not isinstance(email, str) or not email.strip():
+        errors["email"] = "Required"
+    else:
+        cleaned["email"] = _normalize_email(email)
+
+    return cleaned, errors
+
+
+# validates the new password from password reset
+def validate_reset_password_data(data):
+
+    cleaned = {}
+    errors = {}
+
+    token = data.get("token")
+    if not isinstance(token, str) or not token.strip():
+        errors["token"] = "Required"
+    else:
+        cleaned["token"] = token.strip()
+
+    password = data.get("password")
+
+    if not isinstance(password, str) or not password:
+        errors["password"] = "Required"
+    elif len(password) < MIN_PASSWORD_LENGTH:
+        errors["password"] = (f"Password is too short. Must be at least {MIN_PASSWORD_LENGTH} characters.")
+    elif len(password.encode("utf-8")) > MAX_PASSWORD_LENGTH:
+        errors["password"] = (f"Password is too long. Must be less than {MAX_PASSWORD_LENGTH} characters.")
+    else:
+        cleaned["password"] = password
+
+    return cleaned, errors
