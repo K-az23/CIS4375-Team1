@@ -1,5 +1,3 @@
-import re
-
 from ..extensions import db
 from ..models import Role, User
 
@@ -130,9 +128,13 @@ def validate_registration_data(data):
     return cleaned, errors
 
 
-def email_taken(email):
+def email_taken(email, exclude_user_id=None):
     # for email check, only pulling user ID to determine wheter email already exists
+    # also allowing email change from User profile - still checks against DB
     query = db.select(User.user_id).where(User.email == email)
+
+    if exclude_user_id is not None:
+        query = query.where(User.user_id != exclude_user_id)
 
     return db.session.execute(query).first() is not None
 
