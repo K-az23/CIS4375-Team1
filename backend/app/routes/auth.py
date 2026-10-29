@@ -35,7 +35,7 @@ def register():
              details = errors,
          ), 400
      if email_taken(fields["email"]):
-         return jsonify(error="An account with this email already exists"), 400
+         return jsonify(error="An account with this email already exists"), 409
     # On default all accounts are Customer Roles only
      customer_role = get_customer_role()
 
@@ -54,7 +54,7 @@ def register():
          phone = fields["phone"],
          password_hash=password_hash,
 
-         # these will be managed by the admin side
+         # these will be managed by the admin side, but still attached per user
          no_show_count=0,
          is_member=False,
          is_active=True,

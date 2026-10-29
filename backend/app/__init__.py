@@ -3,13 +3,13 @@ from flask_cors import CORS
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
+# Brings all model classes so SQLAlchemy will register their mappings
+# and resolve the relationships between the models
+from . import models as models
 from .config import Config
 from .extensions import db
 from .routes import register_blueprints
 
-# Brings all model classes so SQLAlchemy will register their mappings
-# and resolve the relationships between the models
-from . import models
 
 def create_app():
     app = Flask(__name__)

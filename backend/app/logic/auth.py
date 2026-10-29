@@ -1,8 +1,6 @@
 from ..extensions import db
 from ..models import Role, User
 
-
-
 MAX_FIRST_NAME_LENGTH = 100
 MAX_LAST_NAME_LENGTH = 100
 MAX_EMAIL_LENGTH = 150

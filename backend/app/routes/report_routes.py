@@ -1,6 +1,5 @@
 from flask import Blueprint, jsonify, request
 
-
 report_bp = Blueprint(
     "reports",
     __name__,
