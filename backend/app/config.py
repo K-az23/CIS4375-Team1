@@ -24,3 +24,5 @@ class Config:
     SECRET_KEY = os.getenv("SECRET_KEY")
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(minutes=30) # keeping to 30 min for now, better to change to an hour with refresh mechanism
+    SETMORE_API_BASE_URL = os.getenv("SETMORE_API_BASE_URL", "")
+    SETMORE_REFRESH_TOKEN = os.getenv("SETMORE_REFRESH_TOKEN", "")
