@@ -70,6 +70,9 @@ def update_profile():
 
     return jsonify(user=user.to_dict())
 
+
+# Need to work on
+
 # GET /api/users/me/hairpiece-orders
 @user_bp.route("/me/hairpiece-orders", methods=["GET"])
 def get_current_user_hairpiece_orders():
