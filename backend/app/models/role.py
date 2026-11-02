@@ -4,16 +4,10 @@ from ..extensions import db
 class Role(db.Model):
     __tablename__ = "roles"
 
-    role_id = db.Column(db.Integer, primary_key=True, autoincrement=True,)
+    role_id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(20), nullable=False, unique=True)
 
-    name = db.Column(db.String(20), nullable=False, unique=True,)
+    users = db.relationship("User", back_populates="role")
 
-    # this will be used as a relationship helper, it is not a db column
-    # makes routing easier for pulling user to roles
-    users = db.relationship("User", back_populates="role",)
-
-    def to_dict(self):
-        return {
-            "role_id": self.role_id,
-            "name": self.name,
-        }
+    def to_admin_dict(self):
+        return {"role_id": self.role_id, "name": self.name}

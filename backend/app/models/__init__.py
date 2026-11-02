@@ -1,4 +1,4 @@
-from .appointments import Appointment
+from .appointment import Appointment
 from .hairpiece_order import HairpieceOrder
 from .inventory_item import InventoryItem
 from .item_category import ItemCategory
@@ -21,5 +21,5 @@ __all__ = [
     "Service",
     "ServiceItem",
     "UsageLog",
-    "User"
-    ]
+    "User",
+]
