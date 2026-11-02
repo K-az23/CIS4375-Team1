@@ -1,0 +1,87 @@
+from flask import Blueprint, jsonify, request
+from flask_jwt_extended import get_jwt_identity, jwt_required
+
+from ..extensions import db
+from ..logic.payment import (
+    PaymentError,
+    get_saved_card,
+    handle_stripe_event,
+    start_card_setup,
+)
+from ..models import User
+
+payment_bp = Blueprint("payment", __name__)
+stripe_webhook_bp = Blueprint("stripe_webhook", __name__)
+
+
+def _current_user():
+    user = db.session.get(User, int(get_jwt_identity()))
+    if user is None or not user.is_active:
+        return None
+    return user
+
+
+# POST /api/payments/setup-method
+@payment_bp.post("/setup-method")
+@jwt_required()
+def setup_payment_method():
+    user = _current_user()
+    if user is None:
+        return jsonify(error="Account not found or inactive"), 403
+
+    try:
+        client_secret = start_card_setup(user)
+    except PaymentError as error:
+        return jsonify(error=str(error)), 502
+
+    return jsonify(client_secret=client_secret), 201
+
+
+# GET /api/payments/method
+@payment_bp.get("/method")
+@jwt_required()
+def get_payment_method():
+    user = _current_user()
+    if user is None:
+        return jsonify(error="Account not found or inactive"), 403
+
+    try:
+        card = get_saved_card(user)
+    except PaymentError as error:
+        return jsonify(error=str(error)), 502
+
+    return jsonify(payment_method=card)
+
+
+# POST /api/payments/create-intent
+@payment_bp.post("/create-intent")
+def create_payment_intent():
+    return jsonify(error="Create payment intent endpoint not implemented yet"), 501
+
+
+# GET /api/payments
+@payment_bp.get("")
+def get_payments():
+    return jsonify(error="Payment history endpoint not implemented yet"), 501
+
+
+# GET /api/payments/<payment_id>
+@payment_bp.get("/<int:payment_id>")
+def get_payment(payment_id):
+    return jsonify(error="Get payment endpoint not implemented yet"), 501
+
+
+# POST /api/webhooks/stripe
+# Called by Stripe, not the frontend, so it uses Stripe's signature instead of a login token.
+@stripe_webhook_bp.post("/stripe")
+def stripe_webhook():
+    try:
+        handle_stripe_event(
+            request.get_data(),
+            request.headers.get("Stripe-Signature"),
+        )
+    except PaymentError as error:
+        return jsonify(error=str(error)), 400
+
+    # Stripe retries any event that doesn't get a 2xx response.
+    return jsonify(received=True)
