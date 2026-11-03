@@ -1,8 +1,19 @@
+from datetime import UTC, datetime
+from decimal import Decimal
+
 import stripe
 from flask import current_app
 
 from ..extensions import db
-from ..models import User
+from ..models import HairpieceOrder, Payment, User
+
+
+class PaymentNotAllowed(Exception):
+    """Raised when a request can't be paid for; carries the HTTP status to return."""
+
+    def __init__(self, message, status):
+        super().__init__(message)
+        self.status = status
 
 
 class PaymentError(Exception):
@@ -14,6 +25,20 @@ def _client():
     if not secret_key:
         raise PaymentError("Payments are not configured")
     return stripe.StripeClient(secret_key)
+
+
+def _update_payment(payment_intent_id, status):
+    payment = db.session.execute(
+        db.select(Payment).where(Payment.stripe_payment_intent_id == payment_intent_id)
+    ).scalar_one_or_none()
+    # Stripe can deliver events out of order; never undo a successful payment.
+    if payment is None or payment.status == "succeeded":
+        return
+
+    payment.status = status
+    if status == "succeeded":
+        payment.charged_at = datetime.now(UTC)
+    db.session.commit()
 
 
 def get_or_create_stripe_customer(user):
@@ -81,6 +106,78 @@ def get_saved_card(user):
     }
 
 
+def _to_cents(amount):
+    # Stripe takes whole cents; Decimal avoids float rounding on money.
+    return int((Decimal(amount) * 100).quantize(Decimal(1)))
+
+
+def start_order_payment(user, order_id):
+    """Return a PaymentIntent client_secret for one of the user's hairpiece orders."""
+    order = db.session.get(HairpieceOrder, order_id)
+    # Someone else's order looks the same as a missing one, so ids can't be probed.
+    if order is None or order.user_id != user.user_id:
+        raise PaymentNotAllowed("Order not found", 404)
+    if order.order_status == "cancelled":
+        raise PaymentNotAllowed("This order was cancelled", 409)
+    if order.price is None or order.price <= 0:
+        raise PaymentNotAllowed("This order has no price yet", 409)
+
+    payment = (
+        db.session.execute(
+            db.select(Payment)
+            .where(Payment.order_id == order.order_id)
+            .where(Payment.stripe_payment_intent_id.is_not(None))
+            .order_by(Payment.payment_id.desc())
+        )
+        .scalars()
+        .first()
+    )
+
+    if payment is not None:
+        if payment.status == "succeeded":
+            raise PaymentNotAllowed("This order is already paid", 409)
+        try:
+            intent = _client().v1.payment_intents.retrieve(
+                payment.stripe_payment_intent_id
+            )
+        except stripe.StripeError:
+            raise PaymentError("Unable to reach the payment service") from None
+        # Reusing the open PaymentIntent means a refresh or retry can't charge twice.
+        if intent.status != "canceled":
+            return intent.client_secret
+        payment.status = "failed"
+
+    customer_id = get_or_create_stripe_customer(user)
+    try:
+        intent = _client().v1.payment_intents.create(
+            params={
+                "amount": _to_cents(order.price),
+                "currency": "usd",
+                "customer": customer_id,
+                "automatic_payment_methods": {"enabled": True},
+                "description": f"Hairpiece order #{order.order_id}",
+                "metadata": {
+                    "order_id": str(order.order_id),
+                    "user_id": str(user.user_id),
+                },
+            }
+        )
+    except stripe.StripeError:
+        raise PaymentError("Unable to start the payment") from None
+
+    db.session.add(
+        Payment(
+            order_id=order.order_id,
+            payment_method="card",
+            amount=order.price,
+            payment_type="hairpiece_order",
+            status="pending",
+            stripe_payment_intent_id=intent.id,
+        )
+    )
+    db.session.commit()
+    return intent.client_secret
+
 
 def handle_stripe_event(payload, signature):
     """Verify a webhook from Stripe and apply it to the database."""
@@ -99,6 +196,10 @@ def handle_stripe_event(payload, signature):
         _save_card(stripe_object.customer, stripe_object.payment_method)
     elif event.type == "payment_method.attached":
         _save_card(stripe_object.customer, stripe_object.id)
+    elif event.type == "payment_intent.succeeded":
+        _update_payment(stripe_object.id, "succeeded")
+    elif event.type == "payment_intent.payment_failed":
+        _update_payment(stripe_object.id, "failed")
 
 
 def _save_card(customer_id, payment_method_id):

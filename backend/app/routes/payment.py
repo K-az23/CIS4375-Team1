@@ -4,9 +4,11 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 from ..extensions import db
 from ..logic.payment import (
     PaymentError,
+    PaymentNotAllowed,
     get_saved_card,
     handle_stripe_event,
     start_card_setup,
+    start_order_payment,
 )
 from ..models import User
 
@@ -55,8 +57,26 @@ def get_payment_method():
 
 # POST /api/payments/create-intent
 @payment_bp.post("/create-intent")
+@jwt_required()
 def create_payment_intent():
-    return jsonify(error="Create payment intent endpoint not implemented yet"), 501
+    user = _current_user()
+    if user is None:
+        return jsonify(error="Account not found or inactive"), 403
+
+    data = request.get_json(silent=True)
+    order_id = data.get("order_id") if isinstance(data, dict) else None
+    # bool is a subclass of int, so true/false must be rejected explicitly.
+    if not isinstance(order_id, int) or isinstance(order_id, bool):
+        return jsonify(error="order_id is required and must be a number"), 400
+
+    try:
+        client_secret = start_order_payment(user, order_id)
+    except PaymentNotAllowed as error:
+        return jsonify(error=str(error)), error.status
+    except PaymentError as error:
+        return jsonify(error=str(error)), 502
+
+    return jsonify(client_secret=client_secret), 201
 
 
 # GET /api/payments
