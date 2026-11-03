@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal
 
 import stripe
@@ -198,6 +198,75 @@ def get_user_payment(user, payment_id):
     """Return one of the user's payments, or None if it isn't theirs."""
     query = _user_payments_query(user).where(Payment.payment_id == payment_id)
     return db.session.execute(query).scalar_one_or_none()
+
+
+PAYMENT_STATUSES = ("pending", "succeeded", "failed", "refunded")
+
+
+def _parse_date(value, field, errors):
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        errors[field] = "Must be a date like 2026-11-03"
+        return None
+
+
+def validate_payment_filters(args):
+    """Return (filters, errors) for the admin payment list's query string."""
+    filters = {}
+    errors = {}
+
+    status = args.get("status")
+    if status:
+        if status not in PAYMENT_STATUSES:
+            errors["status"] = f"Must be one of: {', '.join(PAYMENT_STATUSES)}"
+        else:
+            filters["status"] = status
+
+    for field in ("from", "to"):
+        if args.get(field):
+            parsed = _parse_date(args[field], field, errors)
+            if parsed:
+                filters[field] = parsed
+
+    if "from" in filters and "to" in filters and filters["from"] > filters["to"]:
+        errors["to"] = "Must be on or after from"
+
+    return filters, errors
+
+
+def list_all_payments(filters):
+    """Return every payment matching the filters, newest first, for the admin side."""
+    query = db.select(Payment).order_by(Payment.payment_id.desc())
+
+    if "status" in filters:
+        query = query.where(Payment.status == filters["status"])
+    # Date filters use charged_at, so they only match payments that went through.
+    if "from" in filters:
+        start = datetime.combine(filters["from"], time.min)
+        query = query.where(Payment.charged_at >= start)
+    if "to" in filters:
+        end = datetime.combine(filters["to"] + timedelta(days=1), time.min)
+        query = query.where(Payment.charged_at < end)
+
+    return db.session.execute(query).scalars().all()
+
+
+def payment_with_customer(payment):
+    """Admin view of a payment, including who paid."""
+    order = payment.hairpiece_order
+    customer = order.user if order else None
+    return {
+        **payment.to_admin_dict(),
+        "customer": {
+            "user_id": customer.user_id,
+            "first_name": customer.first_name,
+            "last_name": customer.last_name,
+            "email": customer.email,
+        }
+        if customer
+        else None,
+    }
 
 
 def handle_stripe_event(payload, signature):
