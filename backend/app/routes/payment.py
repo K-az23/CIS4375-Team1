@@ -8,13 +8,18 @@ from ..logic.payment import (
     get_saved_card,
     get_user_payment,
     handle_stripe_event,
+    list_all_payments,
     list_user_payments,
+    payment_with_customer,
     start_card_setup,
     start_order_payment,
+    validate_payment_filters,
 )
-from ..models import User
+from ..models import Payment, User
+from ..utils.auth import role_required
 
 payment_bp = Blueprint("payment", __name__)
+admin_payment_bp = Blueprint("admin_payment", __name__)
 stripe_webhook_bp = Blueprint("stripe_webhook", __name__)
 
 
@@ -104,6 +109,28 @@ def get_payment(payment_id):
         return jsonify(error="Payment not found"), 404
 
     return jsonify(payment=payment.to_dict())
+
+# GET /api/admin/payments?status=succeeded&from=2026-11-01&to=2026-11-30
+@admin_payment_bp.get("")
+@role_required("admin")
+def get_admin_payments():
+    filters, errors = validate_payment_filters(request.args)
+    if errors:
+        return jsonify(error="Validation failed", details=errors), 400
+
+    payments = list_all_payments(filters)
+    return jsonify(payments=[payment_with_customer(p) for p in payments])
+
+
+# GET /api/admin/payments/<payment_id>
+@admin_payment_bp.get("/<int:payment_id>")
+@role_required("admin")
+def get_admin_payment(payment_id):
+    payment = db.session.get(Payment, payment_id)
+    if payment is None:
+        return jsonify(error="Payment not found"), 404
+
+    return jsonify(payment=payment_with_customer(payment))
 
 # POST /api/webhooks/stripe
 # Called by Stripe, not the frontend, so it uses Stripe's signature instead of a login token.
