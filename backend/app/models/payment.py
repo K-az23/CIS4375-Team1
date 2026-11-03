@@ -11,8 +11,6 @@ class Payment(db.Model):
         db.ForeignKey("appointments.setmore_booking_id"),
         )
 
-    user_id = db.Column(db.Integer, db.ForeignKey("users.user_id"))
-
     order_id = db.Column(db.Integer, db.ForeignKey("hairpiece_orders.order_id"),)
 
     payment_method = db.Column(db.String(20), nullable=False,)
@@ -36,20 +34,17 @@ class Payment(db.Model):
     # for payment to access the hairpiece order associated with order_id
     hairpiece_order = db.relationship("HairpieceOrder", back_populates="payments",)
 
-    user = db.relationship("User", back_populates="payments")
-
     def to_dict(self):
         return {
             "payment_id": self.payment_id,
             "setmore_booking_id": self.setmore_booking_id,
-            "user_id": self.user_id,
             "order_id": self.order_id,
             "payment_method": self.payment_method,
             "amount": float(self.amount) if self.amount is not None else None,
             "payment_type": self.payment_type,
             "status": self.status,
             "charged_at": (
-                self.charged_at.isoformat() if self.charged_at is not None else None
+                self.charged_at.isoformat() if self.self.charged_at is not None else None
             ),
         }
 
@@ -58,7 +53,6 @@ class Payment(db.Model):
         return {
             "payment_id": self.payment_id,
             "setmore_booking_id": self.setmore_booking_id,
-            "user_id": self.user_id,
             "order_id": self.order_id,
             "payment_method": self.payment_method,
             "amount": float(self.amount) if self.amount is not None else None,
@@ -66,6 +60,6 @@ class Payment(db.Model):
             "status": self.status,
             "stripe_payment_intent_id": self.stripe_payment_intent_id,
             "charged_at": (
-                self.charged_at.isoformat() if self.charged_at is not None else None
+                self.charged_at.isoformat() if self.self.charged_at is not None else None
             ),
         }
