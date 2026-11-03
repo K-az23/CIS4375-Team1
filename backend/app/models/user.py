@@ -52,6 +52,7 @@ class User(db.Model):
     # conncets users to all their appointments
     appointments = db.relationship("Appointment", back_populates="user",)
 
+    payments = db.relationship("Payment", back_populates="user")
 
     # not dumping every column into JSON such as:
     # password_hash, stripe and setmore id, and stripe payment method
