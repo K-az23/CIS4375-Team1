@@ -44,7 +44,7 @@ class Payment(db.Model):
             "payment_type": self.payment_type,
             "status": self.status,
             "charged_at": (
-                self.charged_at.isoformat() if self.self.charged_at is not None else None
+                self.charged_at.isoformat() if self.charged_at is not None else None
             ),
         }
 
@@ -60,6 +60,6 @@ class Payment(db.Model):
             "status": self.status,
             "stripe_payment_intent_id": self.stripe_payment_intent_id,
             "charged_at": (
-                self.charged_at.isoformat() if self.self.charged_at is not None else None
+                self.charged_at.isoformat() if self.charged_at is not None else None
             ),
         }

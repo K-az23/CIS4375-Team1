@@ -179,6 +179,27 @@ def start_order_payment(user, order_id):
     return intent.client_secret
 
 
+def _user_payments_query(user):
+    # Payments link to a customer through their hairpiece order.
+    return (
+        db.select(Payment)
+        .join(HairpieceOrder, Payment.order_id == HairpieceOrder.order_id)
+        .where(HairpieceOrder.user_id == user.user_id)
+    )
+
+
+def list_user_payments(user):
+    """Return the user's payments, newest first."""
+    query = _user_payments_query(user).order_by(Payment.payment_id.desc())
+    return db.session.execute(query).scalars().all()
+
+
+def get_user_payment(user, payment_id):
+    """Return one of the user's payments, or None if it isn't theirs."""
+    query = _user_payments_query(user).where(Payment.payment_id == payment_id)
+    return db.session.execute(query).scalar_one_or_none()
+
+
 def handle_stripe_event(payload, signature):
     """Verify a webhook from Stripe and apply it to the database."""
     secret = current_app.config.get("STRIPE_WEBHOOK_SECRET")
