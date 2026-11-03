@@ -6,7 +6,9 @@ from ..logic.payment import (
     PaymentError,
     PaymentNotAllowed,
     get_saved_card,
+    get_user_payment,
     handle_stripe_event,
+    list_user_payments,
     start_card_setup,
     start_order_payment,
 )
@@ -78,18 +80,30 @@ def create_payment_intent():
 
     return jsonify(client_secret=client_secret), 201
 
-
 # GET /api/payments
 @payment_bp.get("")
+@jwt_required()
 def get_payments():
-    return jsonify(error="Payment history endpoint not implemented yet"), 501
+    user = _current_user()
+    if user is None:
+        return jsonify(error="Account not found or inactive"), 403
+
+    return jsonify(payments=[p.to_dict() for p in list_user_payments(user)])
 
 
 # GET /api/payments/<payment_id>
 @payment_bp.get("/<int:payment_id>")
+@jwt_required()
 def get_payment(payment_id):
-    return jsonify(error="Get payment endpoint not implemented yet"), 501
+    user = _current_user()
+    if user is None:
+        return jsonify(error="Account not found or inactive"), 403
 
+    payment = get_user_payment(user, payment_id)
+    if payment is None:
+        return jsonify(error="Payment not found"), 404
+
+    return jsonify(payment=payment.to_dict())
 
 # POST /api/webhooks/stripe
 # Called by Stripe, not the frontend, so it uses Stripe's signature instead of a login token.
