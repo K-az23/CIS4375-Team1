@@ -179,7 +179,7 @@ POST /api/admin/payments/<payment_id>/refund
                                           show up as "refunded" (through the webhook)
 
 
-Payment status values: pending, succeeded, failed, refunded.
+Payment status values: pending, succeeded, failed, refunded, cancelled.
 charged_at is UTC; convert to local time for display.
 
 NOT USED (out of scope, do not connect):

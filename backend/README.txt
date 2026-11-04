@@ -18,6 +18,7 @@ TECH STACK
 - stripe               (payments for hairpiece orders, test mode only)
 - python-dotenv        (loads settings from .env)
 - ruff (dev only)      (code linter, like ESLint for Python)
+- pytest (dev only)    (automated tests)
 
 REQUEST FLOW
 Frontend services/ -> routes/ -> role check (utils/) -> logic/
@@ -45,7 +46,7 @@ app/
                    see.
 database/
   schema.sql       The official structure of the database.
-tests/             Automated tests (to be added).
+tests/             Automated tests (pytest). Run with: pytest
 run.py             Starts the development server.
 requirements.txt   Packages the app needs to run.
 requirements-dev.txt  Tools for development only (ruff).
@@ -113,6 +114,7 @@ DAILY USE
 - Health checks:       http://localhost:5000/api/health
                        http://localhost:5000/api/health/db
 - Before pushing:      ruff check .      (ruff check . --fix to auto-fix)
+                       pytest            (all tests must pass)
 - Leave the venv:      deactivate
 - Test endpoints:      open backend/requests/<resource>.http in VS Code
                        (REST Client extension) and click Send Request
@@ -127,7 +129,17 @@ requirements-dev.txt by hand, with a pinned version (e.g. ruff==0.17.0).
 CI AND BRANCHES
 ----------------------------------------------------------------------
 - Pull requests into BackTest, FinalTest, and main run "Backend CI":
-  install packages, ruff lint, and an app start/health check.
+  install packages, ruff lint, pytest, and an app start/health check.
+
+TESTS
+----------------------------------------------------------------------
+tests/ uses pytest with a throwaway in-memory SQLite database and a
+fake Stripe, so tests never touch the real database or Stripe and
+need no .env.
+  conftest.py   Fixtures: app, client, fake_stripe
+  helpers.py    make_user, make_order, make_payment, auth_header,
+                send_webhook (signs events like Stripe does)
+Add a test_<resource>.py file when you build or change endpoints.
 - Backend work flows: feature branch -> BackTest -> FinalTest -> main.
 - Dependabot opens weekly package update PRs into BackTest.
 
