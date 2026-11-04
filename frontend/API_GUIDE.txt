@@ -19,19 +19,22 @@ The frontend never talks to the database or Setmore directly.
 
 WHERE TO CONNECT
 ----------------------------------------------------------------------
-Base URL (local):    http://localhost:5000/api
+Base URL (local):    http://localhost:5000
 Base URL (deployed): TBD once the backend is on AWS
 
-Set it in frontend/.env:
-  VITE_API_URL=http://localhost:5000/api
+Set it in frontend/.env (no /api at the end; the paths include it):
+  VITE_API_URL=http://localhost:5000
 
-Every request in frontend/src/services/ builds its URL from
-import.meta.env.VITE_API_URL. Never hardcode the address, so switching
-to the deployed backend later only means changing this one line.
+Every request goes through api() in frontend/src/api/client.js, which
+adds VITE_API_URL and the login token. Never hardcode the address, so
+switching to the deployed backend later only means changing this one
+line.
 
-Example:
-  const res = await fetch(`${import.meta.env.VITE_API_URL}/services`);
-  const data = await res.json();      // { services: [ ... ] }
+Example (in a file in frontend/src/services/):
+  import { api } from '../api/client';
+  export function getServices() {
+    return api('/api/services').then((data) => data.services);
+  }
 
 RUNNING THE BACKEND LOCALLY
 ----------------------------------------------------------------------
@@ -83,9 +86,18 @@ STATUS CODES TO HANDLE
 
 LOGIN
 ----------------------------------------------------------------------
-Pending the session vs. token decision. Until then, only public
-endpoints (such as GET /api/services) can be connected. This section
-will be updated with how to send the login with each request.
+Login uses a token (JWT) sent with every request.
+
+1. POST /api/auth/login with {"email", "password"} returns
+   { "access_token": "...", "user": {...} }
+2. Save access_token in localStorage under "token".
+   (AuthContext must read data.access_token, not data.token.)
+3. client.js adds "Authorization: Bearer <token>" to every request.
+4. Tokens expire after 30 minutes. A 401 means: send the user to Login.
+5. POST /api/auth/register returns { "user": {...} } but NO token, so
+   log the user in right after registering.
+
+Admin routes check the role on the server; a customer gets 403.
 
 TROUBLESHOOTING
 ----------------------------------------------------------------------
@@ -127,4 +139,69 @@ DELETE /api/admin/services/<service_id>   SVC-06  Deactivate a service (admin)
                                                   Does not delete; hides it from customers
 
 service_id is a number (e.g. /api/services/3).
-Admin login is not enforced yet on /api/admin routes.
+Admin login is not enforced yet on /api/admin/services routes.
+
+AUTH AND ACCOUNT (login required unless noted)
+POST /api/auth/register                   Create a customer account (public)
+                                          Required: first_name, last_name, email,
+                                          phone (10 digits), password (8+ characters)
+POST /api/auth/login                      Log in (public); returns access_token and user
+POST /api/auth/logout                     Log out; then delete the saved token
+GET  /api/auth/me                         The logged-in user
+POST /api/auth/forgot-password            Start a password reset (public)
+POST /api/auth/reset-password             Finish a password reset (public): token, password
+GET  /api/users/me                        Profile
+PATCH /api/users/me                       Edit profile: first_name, last_name, email, phone
+
+PAYMENTS (hairpiece orders only)
+POST /api/payments/create-intent          Start paying an order (customer)
+                                          Body: {"order_id": 2}
+                                          201: {"client_secret": "pi_..._secret_..."}
+                                          404 order missing or not yours
+                                          409 cancelled, no price, or already paid
+                                          Calling it again for the same unpaid order
+                                          returns the same client_secret (no double charge)
+GET  /api/payments                        The customer's payments, newest first
+                                          {"payments": [{payment_id, order_id, amount,
+                                          payment_method, payment_type, status,
+                                          charged_at, setmore_booking_id}]}
+GET  /api/payments/<payment_id>           One payment; 404 if not theirs
+GET  /api/admin/payments                  All payments, each with a "customer"
+                                          {user_id, first_name, last_name, email} (admin)
+                                          Optional: ?status=pending|succeeded|failed|refunded
+                                          ?from=2026-11-01&to=2026-11-30 (dates in UTC)
+GET  /api/admin/payments/<payment_id>     One payment with customer (admin)
+
+Payment status values: pending, succeeded, failed, refunded.
+charged_at is UTC; convert to local time for display.
+
+NOT USED (out of scope, do not connect):
+POST /api/payments/setup-method and GET /api/payments/method
+(card on file). Leave the Payment Method page as is.
+
+CHECKOUT PAGE FLOW (Stripe)
+----------------------------------------------------------------------
+Packages:  npm install @stripe/stripe-js @stripe/react-stripe-js
+frontend/.env:  VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...
+                (Capstone sandbox publishable key; safe in the browser)
+
+1. POST /api/payments/create-intent {"order_id"} -> client_secret.
+2. Show Stripe's form:
+     const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+     <Elements stripe={stripePromise} options={{ clientSecret }}>
+       <PaymentElement />
+     </Elements>
+   (create stripePromise once, outside the component)
+3. On Pay:
+     const { error } = await stripe.confirmPayment({
+       elements,
+       redirect: 'if_required',
+       confirmParams: { return_url: window.location.href },
+     });
+   If error, show error.message. Otherwise the payment went through.
+4. The database is updated by Stripe's webhook a moment later, so
+   GET /api/payments may still show "pending" for a second or two.
+   Re-check after a short delay before showing it as paid.
+
+Test cards: 4242 4242 4242 4242 (success), 4000 0000 0000 0002
+(declined). Any future expiry, any CVC, any ZIP.

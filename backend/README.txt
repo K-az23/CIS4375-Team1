@@ -15,6 +15,7 @@ TECH STACK
 - Flask-JWT-Extended   (login tokens, including the user's role)
 - bcrypt               (password hashing)
 - Flask-CORS           (allows the React frontend to call the API)
+- stripe               (payments for hairpiece orders, test mode only)
 - python-dotenv        (loads settings from .env)
 - ruff (dev only)      (code linter, like ESLint for Python)
 
@@ -130,6 +131,42 @@ CI AND BRANCHES
 - Backend work flows: feature branch -> BackTest -> FinalTest -> main.
 - Dependabot opens weekly package update PRs into BackTest.
 
+STRIPE (PAYMENTS)
+----------------------------------------------------------------------
+Scope: Stripe is used ONLY for hairpiece order payments. Card on file
+and no-show fees are out of scope (the card-on-file endpoints exist
+but are not used). Test mode only; nothing is live.
+
+All Stripe calls live in logic/payment.py. Card numbers never reach
+our server: the browser sends them straight to Stripe, and we only
+store Stripe IDs (cus_..., pi_...).
+
+Setup (once):
+1. Use the Capstone sandbox keys (Stripe dashboard > Developers >
+   API keys). Put the secret key (sk_test_...) in backend/.env as
+   STRIPE_SECRET_KEY. Ask Matias privately; never in the group chat.
+2. Install the Stripe CLI:  npm install -g @stripe/cli
+3. stripe login   (pick "Capstone sandbox")
+
+Every time you test payments, run a third terminal:
+  stripe listen --all-snapshot --forward-to localhost:5000/api/webhooks/stripe
+Copy the whsec_... it prints into backend/.env as STRIPE_WEBHOOK_SECRET
+(it stays the same on your computer) and restart the server.
+Use --all-snapshot; with --events the CLI does not forward every event.
+
+How an order payment works:
+1. POST /api/payments/create-intent with {"order_id": n}. The backend
+   takes the price from the database, creates a Stripe PaymentIntent,
+   and saves a "pending" row in payments.
+2. The customer pays in Stripe's form in the browser.
+3. Stripe calls POST /api/webhooks/stripe. The backend checks the
+   signature and marks the payment "succeeded" (sets charged_at) or
+   "failed".
+
+Paying a test order without the frontend:
+  stripe payment_intents confirm pi_... -d payment_method=pm_card_visa -d return_url=http://localhost:5173
+(pi_... is the part of client_secret before "_secret_".)
+
 CREDENTIALS
 ----------------------------------------------------------------------
 - Real values only ever live in .env (locally) or the AWS server's
@@ -148,3 +185,13 @@ GET /api/admin/services                   SVC-03  List all services with admin d
 POST /api/admin/services                  SVC-04  Create a service (admin)
 PATCH /api/admin/services/<service_id>    SVC-05  Edit a service (admin)
 DELETE /api/admin/services/<service_id>   SVC-06  Deactivate a service (admin)
+
+POST /api/payments/create-intent          Start paying a hairpiece order (customer)
+GET  /api/payments                        The customer's payments
+GET  /api/payments/<payment_id>           One of the customer's payments
+GET  /api/admin/payments                  All payments with customer (admin)
+                                          ?status= ?from= ?to=
+GET  /api/admin/payments/<payment_id>     One payment with customer (admin)
+POST /api/webhooks/stripe                 Called by Stripe only (signature checked)
+POST /api/payments/setup-method           Save a card (NOT USED: out of scope)
+GET  /api/payments/method                 Saved card (NOT USED: out of scope)
