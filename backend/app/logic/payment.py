@@ -269,6 +269,31 @@ def payment_with_customer(payment):
     }
 
 
+def refund_payment(payment):
+    """Fully refund a card payment through Stripe and return the updated payment."""
+    if payment.status == "refunded":
+        raise PaymentNotAllowed("This payment was already refunded", 409)
+    if payment.status != "succeeded":
+        raise PaymentNotAllowed("Only successful payments can be refunded", 409)
+    if not payment.stripe_payment_intent_id:
+        raise PaymentNotAllowed("Only card payments can be refunded here", 409)
+
+    try:
+        refund = _client().v1.refunds.create(
+            params={"payment_intent": payment.stripe_payment_intent_id},
+            # A double-click or retry must not refund twice.
+            options={"idempotency_key": f"refund-payment-{payment.payment_id}"},
+        )
+    except stripe.StripeError:
+        raise PaymentError("Unable to refund the payment") from None
+
+    # Card refunds usually succeed at once; otherwise the webhook finishes it.
+    if refund.status == "succeeded":
+        payment.status = "refunded"
+        db.session.commit()
+    return payment
+
+
 def handle_stripe_event(payload, signature):
     """Verify a webhook from Stripe and apply it to the database."""
     secret = current_app.config.get("STRIPE_WEBHOOK_SECRET")
@@ -290,6 +315,8 @@ def handle_stripe_event(payload, signature):
         _update_payment(stripe_object.id, "succeeded")
     elif event.type == "payment_intent.payment_failed":
         _update_payment(stripe_object.id, "failed")
+    elif event.type == "charge.refunded" and stripe_object.refunded:
+        _mark_refunded(stripe_object.payment_intent)
 
 
 def _save_card(customer_id, payment_method_id):
@@ -300,4 +327,16 @@ def _save_card(customer_id, payment_method_id):
         return
 
     user.stripe_payment_method_id = payment_method_id
+    db.session.commit()
+
+
+def _mark_refunded(payment_intent_id):
+    # Also covers refunds Natasha makes in the Stripe dashboard.
+    payment = db.session.execute(
+        db.select(Payment).where(Payment.stripe_payment_intent_id == payment_intent_id)
+    ).scalar_one_or_none()
+    if payment is None or payment.status == "refunded":
+        return
+
+    payment.status = "refunded"
     db.session.commit()

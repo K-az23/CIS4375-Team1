@@ -192,6 +192,7 @@ GET  /api/payments/<payment_id>           One of the customer's payments
 GET  /api/admin/payments                  All payments with customer (admin)
                                           ?status= ?from= ?to=
 GET  /api/admin/payments/<payment_id>     One payment with customer (admin)
+POST /api/admin/payments/<payment_id>/refund  Fully refund a card payment (admin)
 POST /api/webhooks/stripe                 Called by Stripe only (signature checked)
 POST /api/payments/setup-method           Save a card (NOT USED: out of scope)
 GET  /api/payments/method                 Saved card (NOT USED: out of scope)

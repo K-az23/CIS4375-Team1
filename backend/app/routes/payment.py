@@ -11,6 +11,7 @@ from ..logic.payment import (
     list_all_payments,
     list_user_payments,
     payment_with_customer,
+    refund_payment,
     start_card_setup,
     start_order_payment,
     validate_payment_filters,
@@ -129,6 +130,23 @@ def get_admin_payment(payment_id):
     payment = db.session.get(Payment, payment_id)
     if payment is None:
         return jsonify(error="Payment not found"), 404
+
+    return jsonify(payment=payment_with_customer(payment))
+
+# POST /api/admin/payments/<payment_id>/refund
+@admin_payment_bp.post("/<int:payment_id>/refund")
+@role_required("admin")
+def refund_admin_payment(payment_id):
+    payment = db.session.get(Payment, payment_id)
+    if payment is None:
+        return jsonify(error="Payment not found"), 404
+
+    try:
+        payment = refund_payment(payment)
+    except PaymentNotAllowed as error:
+        return jsonify(error=str(error)), error.status
+    except PaymentError as error:
+        return jsonify(error=str(error)), 502
 
     return jsonify(payment=payment_with_customer(payment))
 
