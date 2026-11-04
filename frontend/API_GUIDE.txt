@@ -168,7 +168,7 @@ GET  /api/payments                        The customer's payments, newest first
 GET  /api/payments/<payment_id>           One payment; 404 if not theirs
 GET  /api/admin/payments                  All payments, each with a "customer"
                                           {user_id, first_name, last_name, email} (admin)
-                                          Optional: ?status=pending|succeeded|failed|refunded
+                                          status=pending|succeeded|failed|refunded|cancelled
                                           ?from=2026-11-01&to=2026-11-30 (dates in UTC)
 GET  /api/admin/payments/<payment_id>     One payment with customer (admin)
 POST /api/admin/payments/<payment_id>/refund

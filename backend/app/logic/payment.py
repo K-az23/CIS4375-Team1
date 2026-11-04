@@ -200,7 +200,7 @@ def get_user_payment(user, payment_id):
     return db.session.execute(query).scalar_one_or_none()
 
 
-PAYMENT_STATUSES = ("pending", "succeeded", "failed", "refunded")
+PAYMENT_STATUSES = ("pending", "succeeded", "failed", "refunded", "cancelled")
 
 
 def _parse_date(value, field, errors):
@@ -294,6 +294,45 @@ def refund_payment(payment):
     return payment
 
 
+def cancel_order_payment(order):
+    """Stop any unpaid Stripe payment for an order that is being cancelled.
+
+    Call this from the cancel-order endpoint before marking the order cancelled.
+    """
+    payments = (
+        db.session.execute(
+            db.select(Payment)
+            .where(Payment.order_id == order.order_id)
+            .where(Payment.stripe_payment_intent_id.is_not(None))
+        )
+        .scalars()
+        .all()
+    )
+
+    if any(p.status == "succeeded" for p in payments):
+        raise PaymentNotAllowed("This order is already paid; refund it first", 409)
+
+    for payment in payments:
+        if payment.status not in ("pending", "failed"):
+            continue
+        try:
+            intent = _client().v1.payment_intents.retrieve(
+                payment.stripe_payment_intent_id
+            )
+            if intent.status == "succeeded":
+                # Paid in Stripe, but the webhook hasn't reached us yet.
+                raise PaymentNotAllowed(
+                    "This order was just paid; refund it first", 409
+                )
+            if intent.status != "canceled":
+                _client().v1.payment_intents.cancel(payment.stripe_payment_intent_id)
+        except stripe.StripeError:
+            raise PaymentError("Unable to cancel the payment") from None
+        payment.status = "cancelled"
+
+    db.session.commit()
+
+
 def handle_stripe_event(payload, signature):
     """Verify a webhook from Stripe and apply it to the database."""
     secret = current_app.config.get("STRIPE_WEBHOOK_SECRET")
@@ -315,6 +354,8 @@ def handle_stripe_event(payload, signature):
         _update_payment(stripe_object.id, "succeeded")
     elif event.type == "payment_intent.payment_failed":
         _update_payment(stripe_object.id, "failed")
+    elif event.type == "payment_intent.canceled":
+        _update_payment(stripe_object.id, "cancelled")
     elif event.type == "charge.refunded" and stripe_object.refunded:
         _mark_refunded(stripe_object.payment_intent)
 

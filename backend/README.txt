@@ -167,6 +167,11 @@ Paying a test order without the frontend:
   stripe payment_intents confirm pi_... -d payment_method=pm_card_visa -d return_url=http://localhost:5173
 (pi_... is the part of client_secret before "_secret_".)
 
+Cancelling an order: the cancel-order endpoint (not built yet) must call
+cancel_order_payment(order) from logic/payment.py BEFORE setting the
+order to cancelled. It stops any unpaid Stripe payment, and returns 409
+if the order is already paid (refund it instead).
+
 CREDENTIALS
 ----------------------------------------------------------------------
 - Real values only ever live in .env (locally) or the AWS server's
