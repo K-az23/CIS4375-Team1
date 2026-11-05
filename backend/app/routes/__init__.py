@@ -3,6 +3,7 @@ def register_blueprints(app):
     # imports, since route files import models that import the app's db.
     from .admin import admin_user_bp
     from .auth import auth_bp
+    from .item_category import item_category_bp
     from .payment import admin_payment_bp, payment_bp, stripe_webhook_bp
     from .service import admin_service_bp, service_bp
     from .user import user_bp
@@ -15,3 +16,4 @@ def register_blueprints(app):
     app.register_blueprint(payment_bp, url_prefix="/api/payments")
     app.register_blueprint(admin_payment_bp, url_prefix="/api/admin/payments")
     app.register_blueprint(stripe_webhook_bp, url_prefix="/api/webhooks")
+    app.register_blueprint(item_category_bp, url_prefix="/api/admin/item-categories")

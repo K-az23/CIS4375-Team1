@@ -38,7 +38,7 @@ def validate_item_category_data(data, partial=False):
     return fields, errors
 
 # a check for whether another category already uses the name
-def category_name_take(category_name, exclude_category_id=None):
+def category_name_taken(category_name, exclude_category_id=None):
     query = db.select(ItemCategory).where(ItemCategory.category_name == category_name)
 
     if exclude_category_id is not None:
