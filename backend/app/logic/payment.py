@@ -37,7 +37,7 @@ def _update_payment(payment_intent_id, status):
 
     payment.status = status
     if status == "succeeded":
-        payment.charged_at = datetime.now(UTC)
+        payment.charged_at = datetime.now(UTC).replace(tzinfo=None)
     db.session.commit()
 
 
