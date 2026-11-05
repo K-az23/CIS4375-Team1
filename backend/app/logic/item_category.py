@@ -35,6 +35,16 @@ def validate_item_category_data(data, partial=False):
             )
         else:
             fields["description"] = description.strip() or None
+
+        # to allow active status changes from deactivated, only giving option if frontend wants to use
+    if partial and "is_active" in data:
+        is_active = data.get("is_active")
+
+        if not isinstance(is_active, bool):
+            errors["is_active"] = "is_active must be true or false"
+        else:
+            fields["is_active"] = is_active
+
     return fields, errors
 
 # a check for whether another category already uses the name

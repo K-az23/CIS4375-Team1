@@ -110,6 +110,8 @@ def update_item_category(category_id):
         db.session.rollback()
         return jsonify(error="Unable to update item category"), 500
 
+    return jsonify(category=category.to_dict())
+
 
 # DELETE /api/admin/item-categories/<category_id>
 # delete will be used as a deactivator - so history is not deleted
