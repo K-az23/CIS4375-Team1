@@ -11,10 +11,7 @@ def register_blueprints(app):
     app.register_blueprint(user_bp, url_prefix="/api/users")
     app.register_blueprint(service_bp, url_prefix="/api/services")
     app.register_blueprint(admin_service_bp, url_prefix="/api/admin/services")
-<<<<<<< HEAD
     app.register_blueprint(admin_user_bp, url_prefix="/api/admin/users",)
-=======
     app.register_blueprint(payment_bp, url_prefix="/api/payments")
     app.register_blueprint(admin_payment_bp, url_prefix="/api/admin/payments")
     app.register_blueprint(stripe_webhook_bp, url_prefix="/api/webhooks")
->>>>>>> origin/BackTest
