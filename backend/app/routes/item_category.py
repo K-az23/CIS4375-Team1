@@ -2,10 +2,12 @@ from flask import Blueprint, jsonify, request
 from sqlalchemy.exc import SQLAlchemyError
 
 from ..extensions import db
-from ..logic.item_category import(category_name_taken, validate_item_category_data,)
+from ..logic.item_category import (
+    category_name_taken,
+    validate_item_category_data,
+)
 from ..models import ItemCategory
 from ..utils.auth import role_required
-
 
 item_category_bp = Blueprint(
     "item_categories",
