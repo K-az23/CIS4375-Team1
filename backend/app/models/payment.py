@@ -31,7 +31,11 @@ class Payment(db.Model):
 
     stripe_payment_intent_id = db.Column(db.String(255), unique=True,)
 
-    charged_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(UTC).replace(tzinfo=None))
+    charged_at = db.Column(
+        db.DateTime,
+        nullable=False,
+        default=lambda: datetime.now(UTC).replace(tzinfo=None)
+    )
 
     # relationship helper
     # allows payment to access the associated appointment

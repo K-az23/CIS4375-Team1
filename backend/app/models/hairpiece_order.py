@@ -28,9 +28,13 @@ class HairpieceOrder(db.Model):
 
     dimensions = db.Column(db.String(100),)
 
-    order_status = db.Column(db.String(30), nullable=False, default="pending", )
+    order_status = db.Column(db.String(30), nullable=False, default="pending")
 
-    placed_at = db.Column(db.DateTime, nullable=False, default=lambda: datetime.now(UTC).replace(tzinfo=None))
+    placed_at = db.Column(
+        db.DateTime,
+        nullable=False,
+        default=lambda: datetime.now(UTC).replace(tzinfo=None)
+    )
 
     # relationship helper, not a database column
     # for hairpiece order to access the user who placed the order

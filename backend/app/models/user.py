@@ -30,7 +30,10 @@ class User(db.Model):
 
     no_show_count = db.Column(db.Integer, default=0)
 
-    created_at = db.Column(db.DateTime, default=lambda: datetime.now(UTC).replace(tzinfo=None))
+    created_at = db.Column(
+        db.DateTime,
+        default=lambda: datetime.now(UTC).replace(tzinfo=None)
+    )
 
     stripe_customer_id = db.Column(db.String(255),)
 
