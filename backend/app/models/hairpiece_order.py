@@ -56,5 +56,5 @@ class HairpieceOrder(db.Model):
             "base_type": self.base_type,
             "dimensions": self.dimensions,
             "order_status": self.order_status,
-            "place_at": self.placed_at.isoformat() if self.placed_at is not None else None,
+            "placed_at": self.placed_at.isoformat() if self.placed_at is not None else None,
         }

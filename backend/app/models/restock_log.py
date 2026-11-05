@@ -29,7 +29,7 @@ class RestockLog(db.Model):
             "quantity_change": self.quantity_change,
             "logged_at": (
                 self.logged_at.isoformat()
-                if self.self.logged_at is not None else None
+                if self.logged_at is not None else None
             ),
         }
 
