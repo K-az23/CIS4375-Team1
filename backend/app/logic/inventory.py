@@ -1,10 +1,7 @@
 from decimal import Decimal, InvalidOperation
 
-
 from ..extensions import db
 from ..models import InventoryItem, ItemCategory
-
-
 
 MAX_SKU_LENGTH = 50
 MAX_ITEM_NAME_LENGTH = 100
