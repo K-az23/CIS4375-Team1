@@ -61,7 +61,7 @@ def validate_inventory_data(data, partial=False):
             fields["brand"] = None
         elif not isinstance(brand, str):
             errors["brand"] = "Brand must be text"
-        elif len(brand.stirp()) > MAX_BRAND_LENGTH:
+        elif len(brand.strip()) > MAX_BRAND_LENGTH:
             errors["brand"] = f"Brand must be {MAX_BRAND_LENGTH} characters or less"
         else: fields["brand"] = brand.strip() or None
 
