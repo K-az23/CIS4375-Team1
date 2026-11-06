@@ -12,7 +12,7 @@ class ItemCategory(db.Model):
 
     # using boolean to represent tinyint(1),
     # will let us use True/False insted of 1/0
-    is_active = db.Column(db.Boolean, nullable=False,)
+    is_active = db.Column(db.Boolean, nullable=False, default=True,)
 
     # relationship helper; not a database column
     # for category table to have access to all inventory items, 
