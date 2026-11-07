@@ -1,7 +1,8 @@
+from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 
 from ..extensions import db
-from ..models import InventoryItem, ItemCategory
+from ..models import InventoryItem, ItemCategory, RestockLog
 
 MAX_SKU_LENGTH = 50
 MAX_ITEM_NAME_LENGTH = 100
@@ -144,3 +145,47 @@ def sku_taken(sku, exclude_item_id=None):
         query = query.where(InventoryItem.item_id != exclude_item_id)
 
     return db.session.execute(query).scalar_one_or_none() is not None
+
+
+# for increasing inventory and record the restock adjustment
+def restock_inventory_item(item, quantity):
+    if isinstance(quantity, bool) or not isinstance(quantity, int):
+        return None, "Quantity must be a whole number"
+
+    if quantity <= 0:
+        return None, "Quantity must be greater than 0"
+
+    current_quantity = item.quantity_on_hand or 0
+    item.quantity_on_hand = current_quantity + quantity
+
+    log = RestockLog(
+        item_id = item.item_id,
+        event_type="restock",
+        quantity_change = quantity,
+        logged_at=datetime.now(UTC).replace(tzinfo=None),
+    )
+
+    db.session.add(log)
+
+    return log, None
+
+# Reduces inventory by one or for a manual usage adjust
+def mark_inventory_item_used(item):
+    current_quantity = item.quantity_on_hand or 0
+
+    if current_quantity <= 0:
+        return None, "Item is out of stock"
+
+    item.quantity_on_hand = current_quantity - 1
+
+    log = RestockLog(
+        item_id=item.item_id,
+        event_type="manual_usage",
+        quantity_change=-1,
+        logged_at=datetime.now(UTC).replace(tzinfo=None),
+    )
+
+    db.session.add(log)
+
+    return log, None
+

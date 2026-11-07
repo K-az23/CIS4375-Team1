@@ -2,7 +2,12 @@ from flask import Blueprint, jsonify, request
 from sqlalchemy.exc import SQLAlchemyError
 
 from ..extensions import db
-from ..logic.inventory import sku_taken, validate_inventory_data
+from ..logic.inventory import (
+    mark_inventory_item_used,
+    restock_inventory_item,
+    sku_taken,
+    validate_inventory_data,
+)
 from ..models import InventoryItem
 from ..utils.auth import role_required
 
@@ -155,3 +160,66 @@ def delete_inventory_item(item_id):
         return jsonify(error="Unable to deactivate inventory item"), 500
 
     return jsonify(item=item.to_dict())
+
+
+# POST
+# to add a received quantitty to an inventory item
+@inventory_bp.post("/<int:item_id>/restock")
+@role_required("admin")
+def restock_inventory(item_id):
+    item = db.session.get(InventoryItem, item_id)
+
+    if item is None:
+        return jsonify(error="Inventory item not found"), 404
+
+    data = request.get_json(siletn = True)
+
+    if not isinstance(data, dict):
+        return jsonify(error="JSON body is required"), 400
+
+    quantity = data.get("quantity")
+
+    log, error = restock_inventory_item(item, quantity)
+
+    if error:
+        return jsonify(error=error), 400
+
+    try:
+        db.sesion.commit()
+    except SQLAlchemyError:
+        db.session.rollback()
+        return jsonify(error="Unable to restock inventory item"), 500
+
+    return jsonify(
+        message="Inventory item restocked",
+        item=item.to_dict(),
+        adjustment=log.to_dict(),
+    ), 200
+
+
+# POST
+# For mannually subtracting one item from inventory
+@inventory_bp.post("/<int:item_id>/use")
+@role_required("admin")
+def use_inventory_item(item_id):
+    item = db.session.get(InventoryItem, item_id)
+
+    if item is None:
+        return jsonify(error="Inventory item not found"), 404
+
+    log, error = mark_inventory_item_used(item)
+
+    if error:
+        return jsonify(error=error), 400
+
+    try:
+        db.session.commit()
+    except SQLAlchemyError:
+        db.session.rollback()
+        return jsonify(error="Unable to update inventory item"), 500
+
+    return jsonify(
+        message="One inventory item marked used",
+        item=item.to_dict(),
+        adjustment=log.to_dict(),
+    ), 200
