@@ -172,7 +172,7 @@ def restock_inventory(item_id):
     if item is None:
         return jsonify(error="Inventory item not found"), 404
 
-    data = request.get_json(siletn = True)
+    data = request.get_json(silent = True)
 
     if not isinstance(data, dict):
         return jsonify(error="JSON body is required"), 400
@@ -185,7 +185,7 @@ def restock_inventory(item_id):
         return jsonify(error=error), 400
 
     try:
-        db.sesion.commit()
+        db.session.commit()
     except SQLAlchemyError:
         db.session.rollback()
         return jsonify(error="Unable to restock inventory item"), 500
