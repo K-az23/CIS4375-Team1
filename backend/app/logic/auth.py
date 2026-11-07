@@ -53,6 +53,13 @@ def validate_registration_data(data):
     cleaned = {}
     errors = {}
 
+    # To accept either camelCase or snake_case field names
+    data = {
+        **data,
+        "first_name": data.get("first_name") or data.get("firstName"),
+        "last_name": data.get("last_name") or data.get("lastName"),
+    }
+
     _clean_required_text(
         data,
         "first_name",
