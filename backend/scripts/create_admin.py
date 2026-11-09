@@ -1,11 +1,12 @@
 # built in python module / for securely typing passwords in terminal
 from getpass import getpass
 
+from sqlalchemy.exc import SQLAlchemyError
+
 from app import create_app
 from app.extensions import db
 from app.models import Role, User
 from app.utils.auth import hash_password
-from sqlalchemy.exc import SQLAlchemyError
 
 
 # to create an admin account, will be a script executable in backend

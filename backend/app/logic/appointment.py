@@ -1,9 +1,12 @@
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from ..extensions import db
 from ..models.service import Service
 from ..models.user import User
 from ..utils.phone import normalize_phone
+
+SALON_TIMEZONE = ZoneInfo("America/Chicago")
 
 
 # normalize for Setmore to user matching
@@ -42,14 +45,14 @@ def normalize_setmore_phone(customer):
 
     return normalize_phone(phone)
 
-# convert setmores timestamp to UTC datetime
+# to convert setmore UTC time to local datetime
 def parse_setmore_time(value):
     if not value:
         return None
 
     parsed = datetime.fromisoformat(str(value))
-
-    return parsed.replace(tzinfo=None)
+    local_time = parsed.astimezone(SALON_TIMEZONE)
+    return local_time.replace(tzinfo=None)
 
 # matching setmore profile to their website account
 # email is preferred, second test will be both phone and full name to match
