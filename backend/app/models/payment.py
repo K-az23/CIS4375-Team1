@@ -1,5 +1,11 @@
 from ..extensions import db
 
+PAYMENT_METHODS = ("card", "cash")
+
+PAYMENT_TYPES = ("service", "deposit", "cancellation_fee", "no_show_fee", "hairpiece_order")
+
+PAYMENT_STATUSES = ("pending", "succeeded", "failed", "cancelled", "refunded")
+
 
 class Payment(db.Model):
     __tablename__ = "payments"
@@ -19,11 +25,11 @@ class Payment(db.Model):
 
     payment_type = db.Column(db.String(50), nullable=False,)
 
-    status = db.Column(db.String(20), nullable=False,)
+    status = db.Column(db.String(20), nullable=False, default="pending")
 
     stripe_payment_intent_id = db.Column(db.String(255), unique=True,)
 
-    charged_at = db.Column(db.DateTime,)
+    charged_at = db.Column(db.DateTime)
 
     # relationship helper
     # allows payment to access the associated appointment

@@ -112,6 +112,10 @@ def login():
     ):
         return jsonify(error="Invalid email or password"), 401
 
+    # inactive accounts cannot authenticate
+    if not user.is_active:
+        return jsonify(error="Account is inactive"), 403
+
     # Only the user ID is stored as the JWT identity ~ will load current role from DB
     access_token = create_access_token(identity=str(user.user_id))
 

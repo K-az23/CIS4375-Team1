@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 from ..extensions import db
 
 
@@ -22,13 +24,16 @@ class User(db.Model):
 
     email = db.Column(db.String(255), nullable=False, unique=True,)
 
-    phone = db.Column(db.String(20), nullable=False, unique=True,)
+    phone = db.Column(db.String(20), nullable=False,)
 
     password_hash = db.Column(db.String(255), nullable=False,)
 
-    no_show_count = db.Column(db.Integer,)
+    no_show_count = db.Column(db.Integer, default=0)
 
-    created_at = db.Column(db.DateTime,)
+    created_at = db.Column(
+        db.DateTime,
+        default=lambda: datetime.now(UTC).replace(tzinfo=None)
+    )
 
     stripe_customer_id = db.Column(db.String(255),)
 
@@ -38,9 +43,9 @@ class User(db.Model):
 
     setmore_staff_id = db.Column(db.String(100),)
 
-    is_member = db.Column(db.Boolean, nullable=False,)
+    is_member = db.Column(db.Boolean, nullable=False, default=False)
 
-    is_active = db.Column(db.Boolean, nullable=False,)
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
 
     # relationshp helper
     # makes routing easier to pull roles from users
@@ -58,6 +63,7 @@ class User(db.Model):
     def to_dict(self):
         return {
             "user_id": self.user_id,
+            "role": self.role.name if self.role else None,
             "first_name": self.first_name,
             "last_name": self.last_name,
             "email": self.email,

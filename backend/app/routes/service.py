@@ -8,6 +8,7 @@ from ..logic.service import (
     validate_service_data,
 )
 from ..models import Service
+from ..utils.auth import role_required
 
 service_bp = Blueprint("service", __name__)
 admin_service_bp = Blueprint("admin_service", __name__)
@@ -58,8 +59,8 @@ def get_service(service_id):
 
 
 @admin_service_bp.get("")
+@role_required("admin")
 def list_admin_services():
-    # TODO: restrict to admins with @role_required("admin") once login (AUTH-02) exists
     query = db.select(Service).order_by(Service.service_name)
     if request.args.get("include_inactive", "false").lower() != "true":
         query = query.where(Service.is_active.is_(True))
@@ -68,8 +69,8 @@ def list_admin_services():
 
 
 @admin_service_bp.post("")
+@role_required("admin")
 def create_service():
-    # TODO: restrict to admins with @role_required("admin") once login (AUTH-02) exists
     data = request.get_json(silent=True)
     if not isinstance(data, dict):
         return jsonify(error="Request body must be a JSON object"), 400
@@ -91,8 +92,8 @@ def create_service():
 
 
 @admin_service_bp.patch("/<int:service_id>")
+@role_required("admin")
 def update_service(service_id):
-    # TODO: restrict to admins with @role_required("admin") once login (AUTH-02) exists
     service = db.session.get(Service, service_id)
     if service is None:
         return jsonify(error="Service not found"), 404
@@ -125,8 +126,8 @@ def update_service(service_id):
 
 
 @admin_service_bp.delete("/<int:service_id>")
+@role_required("admin")
 def deactivate_service(service_id):
-    # TODO: restrict to admins with @role_required("admin") once login (AUTH-02) exists
     service = db.session.get(Service, service_id)
     if service is None:
         return jsonify(error="Service not found"), 404

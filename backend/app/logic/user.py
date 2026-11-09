@@ -90,3 +90,26 @@ def validate_user_update_data(data, user_id):
             cleaned["phone"] = phone
 
     return cleaned, errors
+
+
+
+# ------- will be for what the admin can 'update' on the user such as, is_active/is_member/no_show
+
+# validates account fields that an admin can manage
+def validate_admin_user_update_data(data):
+    cleaned = {}
+    errors = {}
+
+    if "is_active" in data:
+        if not isinstance(data["is_active"], bool):
+            errors["is_active"] = "Must be true or false"
+        else:
+            cleaned["is_active"] = data["is_active"]
+
+    if "is_member" in data:
+        if not isinstance(data["is_member"], bool):
+            errors["is_member"] = "Must be true or false"
+        else:
+            cleaned["is_member"] = data["is_member"]
+
+    return cleaned, errors

@@ -1,4 +1,8 @@
+from datetime import UTC, datetime
+
 from ..extensions import db
+
+ORDER_STATUSES = ("pending", "ordered", "received", "picked_up", "cancelled")
 
 
 class HairpieceOrder(db.Model):
@@ -24,9 +28,13 @@ class HairpieceOrder(db.Model):
 
     dimensions = db.Column(db.String(100),)
 
-    order_status = db.Column(db.String(30), nullable=False, )
+    order_status = db.Column(db.String(30), nullable=False, default="pending")
 
-    placed_at = db.Column(db.DateTime, )
+    placed_at = db.Column(
+        db.DateTime,
+        nullable=False,
+        default=lambda: datetime.now(UTC).replace(tzinfo=None)
+    )
 
     # relationship helper, not a database column
     # for hairpiece order to access the user who placed the order
@@ -56,5 +64,5 @@ class HairpieceOrder(db.Model):
             "base_type": self.base_type,
             "dimensions": self.dimensions,
             "order_status": self.order_status,
-            "place_at": self.placed_at.isoformat() if self.placed_at is not None else None,
+            "placed_at": self.placed_at.isoformat() if self.placed_at is not None else None,
         }

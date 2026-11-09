@@ -1,5 +1,7 @@
 from ..extensions import db
 
+APPOINTMENT_STATUSES = ("booked", "completed", "cancelled", "no_show")
+
 
 class Appointment(db.Model):
     __tablename__ = "appointments"
@@ -14,9 +16,9 @@ class Appointment(db.Model):
 
     status = db.Column(db.String(30), nullable=False,)
 
-    cancellation_fee_charged = db.Column(db.Boolean,)
+    cancellation_fee_charged = db.Column(db.Boolean, default=False)
 
-    long_hair_surcharge = db.Column(db.Boolean, )
+    long_hair_surcharge = db.Column(db.Boolean, default=False)
 
     # relationship helper, not column
     # connects appointments to the associated users
