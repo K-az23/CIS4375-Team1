@@ -29,6 +29,7 @@ def get_appointments():
     }), 501
 
 # GET /api/appointments/availability
+# May not be used in flow - will be temporarily kept incase
 @appointment_bp.route("/availability", methods=["GET"])
 def get_appointment_availability():
     return jsonify({
@@ -37,6 +38,7 @@ def get_appointment_availability():
     }), 501
 
 # POST /api/appointments
+# May not be used in flow - will be temporarily kept incase
 @appointment_bp.route("", methods=["POST"])
 def create_appointment():
     return jsonify({
@@ -53,6 +55,7 @@ def get_appointment(setmore_booking_id):
     }), 501
 
 # PATCH /api/appointments/<setmore_booking_id>
+# May not be used in flow - will be temporarily kept incase
 @appointment_bp.route("/<string:setmore_booking_id>", methods=["PATCH"])
 def update_appointment(setmore_booking_id):
     return jsonify({
@@ -61,6 +64,7 @@ def update_appointment(setmore_booking_id):
     }), 501
 
 # DELETE /api/appointments/<setmore_booking_id>
+# May not be used in flow - will be temporarily kept incase
 @appointment_bp.route("/<string:setmore_booking_id>", methods=["DELETE"])
 def cancel_appointment(setmore_booking_id):
     return jsonify({
