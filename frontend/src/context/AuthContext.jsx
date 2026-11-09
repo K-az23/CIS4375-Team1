@@ -31,29 +31,72 @@ export function AuthProvider({ children }) {
   });
   const [checking, setChecking] = useState(!isDemoMode);
 
-  useEffect(() => {
+    useEffect(() => {
     if (isDemoMode) return;
-    api(ENDPOINTS.me)
-      .then((data) => setUser(toUser(data)))
-      .catch(() => setUser(null))
-      .finally(() => setChecking(false));
+
+    const controller = new AbortController();
+
+    async function restoreSession() {
+      try {
+        if (!localStorage.getItem('token')) return;
+
+        const data = await api(ENDPOINTS.me, { signal: controller.signal });
+        if (!controller.signal.aborted) {
+          setUser(toUser(data));
+        }
+      } catch (error) {
+        if (controller.signal.aborted) return;
+
+        if ([401, 403, 404].includes(error.status)) {
+          localStorage.removeItem('token');
+        }
+        setUser(null);
+      } finally {
+        if (!controller.signal.aborted) {
+          setChecking(false);
+        }
+      }
+    }
+
+    restoreSession();
+    return () => controller.abort();
   }, []);
 
-  function saveSession(data) {
-    if (data.token) localStorage.setItem('token', data.token);
+    async function login(email, password) {
+    const data = await api(ENDPOINTS.login, {
+      method: 'POST',
+      body: { email, password },
+    });
+
+    const token = data?.access_token ?? data?.token;
     const loggedIn = toUser(data);
+
+    if (!token || !loggedIn) {
+      throw new Error('The server returned an incomplete login response.');
+    }
+
+    localStorage.setItem('token', token);
     setUser(loggedIn);
     return loggedIn;
   }
 
-  async function login(email, password) {
-    const data = await api(ENDPOINTS.login, { method: 'POST', body: { email, password } });
-    return saveSession(data);
-  }
+  async function register({ firstName, lastName, email, phone, password }) {
+    await api(ENDPOINTS.register, {
+      method: 'POST',
+      body: {
+        first_name: firstName,
+        last_name: lastName,
+        email,
+        phone,
+        password,
+      },
+    });
 
-  async function register(fields) {
-    const data = await api(ENDPOINTS.register, { method: 'POST', body: fields });
-    return saveSession(data);
+    try {
+      return await login(email, password);
+    } catch {
+      throw new Error('Your account was created. Go to Log in to sign in.');
+    }
   }
 
   function loginAsDemo(role) {
