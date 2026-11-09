@@ -1,8 +1,6 @@
 import { apiRequest } from './api';
 
-export async function getActiveItemCategories({ signal } = {}) {
+export async function getItemCategories({ signal } = {}) {
   const { categories } = await apiRequest('/admin/item-categories', { signal });
-  return categories
-    .filter((category) => category.is_active)
-    .map((category) => category.category_name);
+  return categories;
 }
