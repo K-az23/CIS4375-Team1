@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Plus, Check } from 'lucide-react';
 import DashboardHeader from '../../components/DashboardHeader';
 import Panel from '../../components/Panel';
@@ -6,8 +6,10 @@ import DataTable from '../../components/DataTable';
 import StatusBadge from '../../components/StatusBadge';
 import ServiceTabs from '../../components/ServiceTabs';
 import { inventoryItems, money } from '../../data/sampleData';
+import { isDemoMode } from '../../context/authUtils.js';
+import { getActiveItemCategories } from '../../services/itemCategories';
 
-const categories = ['Adhesive', 'Supplies', 'Hair care', 'Styling', 'Color', 'Other'];
+const demoCategories = ['Adhesive', 'Supplies', 'Hair care', 'Styling', 'Color', 'Other'];
 const emptyItem = { type: 'per-use', category: '', name: '', brand: '', size: '', qty: '', threshold: '', cost: '' };
 
 const tabs = [
@@ -22,6 +24,25 @@ export default function Inventory() {
   const [showForm, setShowForm] = useState(false);
   const [newItem, setNewItem] = useState(emptyItem);
   const [message, setMessage] = useState('');
+
+  const [categories, setCategories] = useState(isDemoMode ? demoCategories : null);
+  const [categoryError, setCategoryError] = useState('');
+
+  useEffect(() => {
+    if (isDemoMode) return;
+
+    const controller = new AbortController();
+
+    getActiveItemCategories({ signal: controller.signal })
+      .then((names) => {
+        if (!controller.signal.aborted) setCategories(names);
+      })
+      .catch((error) => {
+        if (!controller.signal.aborted) setCategoryError(error.message);
+      });
+
+    return () => controller.abort();
+  }, []);
 
   function updateQty(id, change, note) {
     setItems(items.map((i) => (i.id === id ? { ...i, qty: Math.max(0, i.qty + change) } : i)));
@@ -91,7 +112,7 @@ export default function Inventory() {
       <div className="page-stack">
         {message && <p className="notice"><Check size={16} /> {message}</p>}
 
-        {showForm && (
+                {showForm && (
           <Panel title="New inventory item">
             <form className="form" onSubmit={addItem} style={{ marginTop: 12 }}>
               <div className="form-row">
@@ -104,10 +125,28 @@ export default function Inventory() {
                 </div>
                 <div className="field">
                   <label htmlFor="category">Category</label>
-                  <select id="category" name="category" required value={newItem.category} onChange={update}>
+                  <select
+                    id="category"
+                    name="category"
+                    required
+                    value={newItem.category}
+                    onChange={update}
+                    disabled={!categories?.length}
+                  >
                     <option value="" disabled>Select a category</option>
-                    {categories.map((c) => <option key={c}>{c}</option>)}
+                    {categories?.map((name) => (
+                      <option key={name} value={name}>{name}</option>
+                    ))}
                   </select>
+                  {!categories && !categoryError && (
+                    <p role="status" className="field-hint">Loading categories…</p>
+                  )}
+                  {categoryError && (
+                    <p role="alert" className="field-hint">Couldn’t load categories. {categoryError}</p>
+                  )}
+                  {categories?.length === 0 && (
+                    <p className="field-hint">No active categories are available.</p>
+                  )}
                 </div>
               </div>
               <div className="form-row">
@@ -140,7 +179,11 @@ export default function Inventory() {
                   <input id="threshold" name="threshold" type="number" min="0" required value={newItem.threshold} onChange={update} />
                 </div>
               </div>
-              <div><button type="submit" className="btn btn-gold">Add item</button></div>
+              <div>
+                <button type="submit" className="btn btn-gold" disabled={!newItem.category}>
+                  Add item
+                </button>
+              </div>
             </form>
           </Panel>
         )}
