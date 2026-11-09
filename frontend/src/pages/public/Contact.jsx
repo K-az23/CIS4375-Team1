@@ -4,6 +4,7 @@ import PageHero from '../../components/PageHero';
 import SocialLinks from '../../components/SocialLinks';
 import { business } from '../../data/business';
 import { images } from '../../data/images';
+import { submitContact } from '../../services/contact';
 
 const reasons = [
   'General question',
@@ -18,15 +19,45 @@ const emptyForm = { name: '', email: '', phone: '', reason: '', message: '' };
 export default function Contact() {
   const [form, setForm] = useState(emptyForm);
   const [sent, setSent] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState('');
 
-  function update(e) {
-    setForm({ ...form, [e.target.name]: e.target.value });
+  function update(event) {
+    const { name, value } = event.target;
+    setForm((current) => ({ ...current, [name]: value }));
+    setSent(false);
   }
 
-  function handleSubmit(e) {
-    e.preventDefault();
-    setSent(true);
-    setForm(emptyForm);
+  async function handleSubmit(event) {
+    event.preventDefault();
+    if (sending) return;
+
+    setSent(false);
+    setError('');
+
+    const fields = {
+      name: form.name.trim(),
+      email: form.email.trim(),
+      phone: form.phone.trim(),
+      reason: form.reason,
+      message: form.message.trim(),
+    };
+
+    if (!fields.name || !fields.message) {
+      setError('Enter your name and a message.');
+      return;
+    }
+
+    setSending(true);
+    try {
+      await submitContact(fields);
+      setForm(emptyForm);
+      setSent(true);
+    } catch (error) {
+      setError(`Couldn’t send your message. ${error.message}`);
+    } finally {
+      setSending(false);
+    }
   }
 
   return (
@@ -42,27 +73,29 @@ export default function Contact() {
                 <h2>We'd love to hear from you</h2>
               </div>
 
-              {sent && <p className="notice" style={{ marginBottom: 16 }}><Check size={16} /> Message sent. We'll get back to you shortly.</p>}
+              {sent && <p role="status" className="notice" style={{ marginBottom: 16 }}><Check size={16} /> Message submitted. We'll get back to you shortly.</p>}
 
-              <form className="form" onSubmit={handleSubmit}>
+              {error && <p role="alert" className="notice notice--warning" style={{ marginBottom: 16 }}>{error}</p>}
+
+              <form className="form" onSubmit={handleSubmit} aria-busy={sending}>
                 <div className="form-row">
                   <div className="field">
                     <label htmlFor="name">Full name *</label>
-                    <input id="name" name="name" required value={form.name} onChange={update} />
+                    <input id="name" name="name" required value={form.name} onChange={update} disabled={sending} />
                   </div>
                   <div className="field">
                     <label htmlFor="email">Email address *</label>
-                    <input id="email" name="email" type="email" required value={form.email} onChange={update} />
+                    <input id="email" name="email" type="email" required value={form.email} onChange={update} disabled={sending} />
                   </div>
                 </div>
                 <div className="form-row">
                   <div className="field">
                     <label htmlFor="phone">Phone (optional)</label>
-                    <input id="phone" name="phone" type="tel" value={form.phone} onChange={update} />
+                    <input id="phone" name="phone" type="tel" value={form.phone} onChange={update} disabled={sending} />
                   </div>
                   <div className="field">
                     <label htmlFor="reason">Reason *</label>
-                    <select id="reason" name="reason" required value={form.reason} onChange={update}>
+                    <select id="reason" name="reason" required value={form.reason} onChange={update} disabled={sending}>
                       <option value="" disabled>Select an option</option>
                       {reasons.map((r) => <option key={r}>{r}</option>)}
                     </select>
@@ -70,11 +103,13 @@ export default function Contact() {
                 </div>
                 <div className="field">
                   <label htmlFor="message">Message *</label>
-                  <textarea id="message" name="message" required maxLength={500} value={form.message} onChange={update} />
+                  <textarea id="message" name="message" required maxLength={500} value={form.message} onChange={update} disabled={sending} />
                   <span className="field-hint" style={{ textAlign: 'right' }}>{form.message.length}/500</span>
                 </div>
                 <div>
-                  <button type="submit" className="btn btn-dark">Send message <ArrowRight size={18} /></button>
+                  <button type="submit" className="btn btn-dark" disabled={sending}>
+                    {sending ? 'Sending…' : 'Send message'} <ArrowRight size={18} />
+                  </button>
                 </div>
               </form>
             </div>
