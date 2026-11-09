@@ -2,7 +2,7 @@ export default function ServiceList({ services }) {
   return (
     <div className="service-list">
       {services.map((service) => (
-        <div key={service.name} className="service-row">
+        <div key={service.id ?? service.name} className="service-row">
           <div>
             <div className="service-row__name">{service.name}</div>
             {service.duration && <div className="service-row__meta">{service.duration}</div>}

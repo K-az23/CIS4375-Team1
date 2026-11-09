@@ -1,35 +1,50 @@
 import { useEffect, useState } from 'react';
 import { ArrowRight } from 'lucide-react';
 import PageHero from '../../components/PageHero';
-import ServiceTabs from '../../components/ServiceTabs';
 import ServiceList from '../../components/ServiceList';
-import { serviceCategories } from '../../data/services';
 import { business } from '../../data/business';
 import { images } from '../../data/images';
 import { getServices } from '../../services/services';
 
+const currency = new Intl.NumberFormat('en-US', {
+  style: 'currency',
+  currency: 'USD',
+});
+
+function toListItem(service) {
+  return {
+    id: service.service_id,
+    name: service.service_name,
+    duration: service.duration_minutes == null ? '' : `${service.duration_minutes} min`,
+    price: service.price == null ? 'Ask for pricing'
+      : Number(service.price) === 0 ? 'Free' : currency.format(service.price),
+  };
+}
+
 export default function Services() {
-  const [tab, setTab] = useState(serviceCategories[0].id);
-  const category = serviceCategories.find((c) => c.id === tab);
+  const [services, setServices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Check that this page can get services from the backend.
   useEffect(() => {
     const controller = new AbortController();
 
     async function loadServices() {
       try {
-        await getServices({
-          signal: controller.signal,
-        });
+        const result = await getServices({ signal: controller.signal });
 
+        if (!Array.isArray(result)) {
+          throw new Error('The server returned an invalid services list.');
+        }
+
+        if (!controller.signal.aborted) {
+          setServices(result.map(toListItem));
+        }
       } catch (error) {
         if (!controller.signal.aborted) {
           setError(error.message);
         }
       } finally {
-        // Stop showing the loading message after the request finishes.
         if (!controller.signal.aborted) {
           setLoading(false);
         }
@@ -37,8 +52,6 @@ export default function Services() {
     }
 
     loadServices();
-
-    // Stop the request when the visitor leaves the page.
     return () => controller.abort();
   }, []);
 
@@ -53,35 +66,27 @@ export default function Services() {
       <section className="section">
         <div className="container services-layout">
           <div>
-            <div className="services-bar">
-              <ServiceTabs
-                options={serviceCategories.map((c) => ({ value: c.id, label: c.label }))}
-                value={tab}
-                onChange={setTab}
-              />
-            </div>
-            <h2 style={{ marginBottom: 4 }}>{category.heading}</h2>
-            <p className="muted" style={{ marginBottom: 24 }}>{category.intro}</p>
+            <h2>Available services</h2>
+
             {loading && <p role="status">Loading services...</p>}
 
             {error && (
               <p role="alert" className="notice notice--warning">
-                {error}
+                Couldn’t load services. {error}
               </p>
             )}
-            <ServiceList services={category.services} />
-            {category.photos && (
-              <div className={`photo-row ${category.photoShape === 'wide' ? 'photo-row--wide' : ''}`}>
-                {category.photos.map((photo) => (
-                  <img key={photo.src} className="photo" src={photo.src} alt={photo.alt} loading="lazy" />
-                ))}
-              </div>
+
+            {!loading && !error && services.length === 0 && (
+              <p className="muted">No services are available right now.</p>
             )}
-            {tab === 'systems' && (
-              <p className="small muted" style={{ marginTop: 16 }}>
-                Hair systems are sold separately. See the Hair Catalog for pricing.
-              </p>
+
+            {!loading && !error && services.length > 0 && (
+              <ServiceList services={services} />
             )}
+
+            <p className="small muted" style={{ marginTop: 16 }}>
+              Hair systems are sold separately. See the Hair Catalog for pricing.
+            </p>
           </div>
 
           <aside className="policy">
@@ -91,7 +96,6 @@ export default function Services() {
               <li>A card on file is required to book. No deposit is charged.</li>
               <li>Cancel at least 12 hours ahead to avoid a cancellation fee.</li>
               <li>No-shows for hair replacement services are charged $50.</li>
-              <li>Arriving more than 15 minutes late counts as a no-show.</li>
               <li>No refunds once hair has been applied or cut.</li>
               <li>We can't serve clients with open sores or lice.</li>
             </ul>
