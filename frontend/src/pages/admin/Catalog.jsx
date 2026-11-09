@@ -6,6 +6,7 @@ import ServiceList from '../../components/ServiceList';
 import SpecList from '../../components/SpecList';
 import { serviceCategories } from '../../data/services';
 import { hairOptions, pricing, specFields, formatSpec } from '../../data/hairOptions';
+import ServiceMaterials from './ServiceMaterials';
 
 function formatPrice(value) {
   const v = String(value).trim();
@@ -246,6 +247,8 @@ export default function Catalog() {
           <OptionsPanel options={options} onSave={(o) => { setOptions(o); saved('Hair system options saved.'); }} />
           <PricingPanel prices={prices} onSave={(p) => { setPrices(p); saved('Hair system pricing saved.'); }} />
         </div>
+
+        <ServiceMaterials />
 
         <div className="report-grid" style={{ alignItems: 'start' }}>
           {categories.map((c) => (
