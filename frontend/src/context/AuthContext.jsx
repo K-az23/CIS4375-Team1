@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api, ENDPOINTS } from '../api/client';
 import { AuthContext } from './authContext.js';
 import { isDemoMode } from './authUtils.js';
+import { updateProfile } from '../services/users';
 
 const demoUsers = {
   customer: { id: 'demo-customer', firstName: 'John', lastName: 'Smith', email: 'demo-client@test.com', role: 'customer' },
@@ -99,6 +100,13 @@ export function AuthProvider({ children }) {
     }
   }
 
+
+  async function saveProfile(fields) {
+    const profile = await updateProfile(fields);
+    const savedUser = toUser(profile);
+    setUser((current) => savedUser && current?.id === savedUser.id ? savedUser : current);
+    return profile;
+  }
   function loginAsDemo(role) {
     sessionStorage.setItem('demoRole', role);
     setUser(demoUsers[role]);
@@ -117,7 +125,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, checking, login, register, logout, loginAsDemo }}>
+        <AuthContext.Provider value={{ user, checking, login, register, logout, loginAsDemo, saveProfile }}>
       {children}
     </AuthContext.Provider>
   );
