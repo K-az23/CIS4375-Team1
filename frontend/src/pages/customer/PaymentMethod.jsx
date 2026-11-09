@@ -3,6 +3,7 @@ import { CreditCard, Lock, Check } from 'lucide-react';
 import DashboardHeader from '../../components/DashboardHeader';
 import { isDemoMode } from '../../context/authUtils.js';
 import { getSavedPaymentMethod } from '../../services/payments';
+import StripeCardSetup from './StripeCardSetup';
 import { currentCustomer } from '../../data/sampleData';
 
 function DemoCard() {
@@ -59,6 +60,9 @@ function DemoCard() {
 function SavedCard() {
   const [paymentMethod, setPaymentMethod] = useState(undefined);
   const [error, setError] = useState('');
+  const [editing, setEditing] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [refreshCount, setRefreshCount] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -72,21 +76,57 @@ function SavedCard() {
       });
 
     return () => controller.abort();
-  }, []);
+  }, [refreshCount]);
 
-  if (error) {
-    return <p role="alert" className="notice notice--warning">Couldn’t load your saved card. {error}</p>;
+  function refreshCard() {
+    setPaymentMethod(undefined);
+    setError('');
+    setRefreshCount((count) => count + 1);
   }
 
-  if (paymentMethod === undefined) {
-    return <p role="status">Loading saved card…</p>;
+  if (editing) {
+    return (
+      <StripeCardSetup
+        onCancel={() => setEditing(false)}
+        onConfirmed={() => {
+          setSubmitted(true);
+          setEditing(false);
+          refreshCard();
+        }}
+      />
+    );
   }
 
-  if (paymentMethod === null) {
-    return <p>No card on file.</p>;
-  }
+  return (
+    <>
+      {submitted && (
+        <p role="status" className="notice">
+          Card setup submitted. It may take a moment for the saved details to update.
+        </p>
+      )}
+      {error && <p role="alert" className="notice notice--warning">Couldn’t load your saved card. {error}</p>}
+      {!error && paymentMethod === undefined && <p role="status">Loading saved card…</p>}
+      {paymentMethod === null && <p>No card on file.</p>}
+      {paymentMethod && <CardSummary card={paymentMethod} />}
 
-  const { brand, last4, exp_month, exp_year } = paymentMethod;
+      <div className="row">
+        {paymentMethod !== undefined && (
+          <button type="button" className="btn btn-outline btn-sm" onClick={() => setEditing(true)}>
+            {paymentMethod ? 'Replace card' : 'Add card'}
+          </button>
+        )}
+        {(submitted || error) && (
+          <button type="button" className="btn btn-outline btn-sm" onClick={refreshCard} disabled={!error && paymentMethod === undefined}>
+            Refresh card details
+          </button>
+        )}
+      </div>
+    </>
+  );
+}
+
+function CardSummary({ card }) {
+  const { brand, last4, exp_month, exp_year } = card;
   const brandName = brand ? brand.charAt(0).toUpperCase() + brand.slice(1) : 'Card';
   const expires = `${String(exp_month).padStart(2, '0')}/${exp_year}`;
 
