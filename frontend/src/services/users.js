@@ -9,3 +9,8 @@ export async function updateProfile(fields) {
   const data = await apiRequest('/users/me', { method: 'PATCH', body: fields });
   return data.user;
 }
+
+export async function getAdminCustomers({ signal } = {}) {
+  const data = await apiRequest('/admin/users', { signal });
+  return data.users;
+}
