@@ -8,6 +8,7 @@ import SpecList from '../../components/SpecList';
 import { hairOptions, pricing, specFields, formatSpec } from '../../data/hairOptions';
 import { business } from '../../data/business';
 import { images } from '../../data/images';
+import CatalogProducts from './CatalogProducts';
 
 const emptySpecs = Object.fromEntries(specFields.map((f) => [f.key, null]));
 
@@ -77,7 +78,7 @@ export default function HairCatalog() {
           </div>
         </div>
       </section>
-
+      <CatalogProducts />
       <section className="section section--muted" id="configure">
         <div className="container">
           <SectionHeader eyebrow="Customize" title="Build your hair loss area system" />
