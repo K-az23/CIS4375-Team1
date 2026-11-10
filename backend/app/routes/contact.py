@@ -1,9 +1,10 @@
-import os
-
-import requests
 from flask import Blueprint, jsonify, request
 
-from ..logic.contact import validate_contact_data
+from ..logic.contact import (
+    ContactError,
+    send_contact_notification,
+    validate_contact_data,
+)
 
 contact_bp = Blueprint(
     "contact",
@@ -11,16 +12,12 @@ contact_bp = Blueprint(
 )
 
 
-# Delivery system unknown - route based with AWS.
-# Contact form delivery will use AWS-based email/SMS notification handling.
-# Exact AWS implementation is still TBD.
-
 
 # POST /api/contact
 # validate and forward the contact form submission
 @contact_bp.post("")
 def submit_contact():
-    data = request.get_json(silent=True)
+    data = request.get_json(silent=True) or {}
 
     if not isinstance(data, dict):
         return jsonify(error="Request body must be JSON"), 400
@@ -30,30 +27,20 @@ def submit_contact():
     if errors:
         return jsonify(error="Validation failed", details=errors), 400
 
-    lambda_url = os.getenv("CONTACT_LAMBDA_URL")
-    api_key = os.getenv("CONTACT_LAMBDA_API_KEY")
-
-    if not lambda_url or not api_key:
-        return jsonify(error="Contact service is not configured"), 503
-
-    headers = {
-        "Content-Type": "application/json",
-        "x-api-key": api_key,
-    }
+    notification_message = (
+        f"Reason: {fields['reason']} | "
+        f"Phone: {fields['phone'] or 'Not provided'} |"
+        f"Message: {fields['message']}"
+    )
 
     try:
-        response = requests.post(
-            lambda_url,
-            json=fields,
-            headers=headers,
-            timeout=10,
+        send_contact_notification(
+            name=fields["full_name"],
+            email=fields["email"],
+            message=notification_message
         )
-    except requests.RequestException:
-        return jsonify(error="Unable to send contact messgae"), 502
-
-    if not response.ok:
-        print("Lambda status:", response.status_code)
-        print("Lambda response:", response.text)
+    except ContactError as exc:
+        print("Contact error:", exc)
         return jsonify(error="Unable to send contact message"), 502
 
     return jsonify(message="Contact message sent"), 200

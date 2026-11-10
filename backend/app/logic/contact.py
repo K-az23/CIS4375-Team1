@@ -1,3 +1,10 @@
+import os
+
+import requests
+
+REQUEST_TIMEOUT_SECONDS = 15
+
+
 ALLOWED_REASONS = {
     "general_question",
     "hair_replacement_consultation",
@@ -5,7 +12,6 @@ ALLOWED_REASONS = {
     "appointment_question",
     "membership",
 }
-
 
 MAX_NAME_LENGTH = 100
 MAX_EMAIL_LENGTH = 255
@@ -55,10 +61,15 @@ def validate_contact_data(data):
     else:
         cleaned["phone"] = phone.strip()
 
-    if reason not in ALLOWED_REASONS:
-        errors["reason"] = "Invalid reason"
+    if not isinstance(reason, str) or not reason.strip():
+        errors["reason"] = "Required"
     else:
-        cleaned["reason"] = reason
+        reason = reason.strip()
+
+        if reason not in ALLOWED_REASONS:
+            errors["reason"] = "Invalid reason"
+        else:
+            cleaned["reason"] = reason
 
     if not isinstance(message, str) or not message.strip():
         errors["message"] = "Required"
@@ -68,3 +79,51 @@ def validate_contact_data(data):
         cleaned["message"] = message.strip()
 
     return cleaned, errors
+
+
+# for if the contact notification cant be sent
+class ContactError(Exception):
+    pass
+
+def send_contact_notification(name, email, message):
+    lambda_url = os.getenv("CONTACT_LAMBDA_URL")
+    api_key = os.getenv("CONTACT_LAMBDA_API_KEY")
+
+    if not lambda_url:
+        raise ContactError("CONTACT_LAMBDA_URL is not configured")
+    if not api_key:
+        raise ContactError("CONTACT_LAMBDA_API_KEY is not configured")
+
+    headers = {
+        "x-api-key": api_key,
+        "Content-Type": "application/json",
+    }
+
+    payload = {
+        "type": "contact_form",
+        "data": {
+            "name": name,
+            "email": email,
+            "message": message
+        }
+    }
+
+    try:
+        response = requests.post(
+            lambda_url,
+            headers=headers,
+            json=payload,
+            timeout=REQUEST_TIMEOUT_SECONDS
+        )
+
+        print("AWS Response Status:", response.status_code)
+        print("AWS Response Headers:", response.headers)
+        print("AWS Response Body:", response.text)
+
+    except requests.RequestException as exc:
+        raise ContactError(f"Could not reach contact service: {type(exc).__name__}") from None
+
+    if not response.ok:
+        raise ContactError(f"Contact service failed: HTTP {response.status_code}")
+
+    return True
