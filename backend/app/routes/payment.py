@@ -111,7 +111,7 @@ def get_payment(payment_id):
 
     return jsonify(payment=payment.to_dict())
 
-# GET /api/admin/payments?status=succeeded&from=2026-11-01&to=2026-11-30
+# GET /api/admin/payments?status=succeeded&from=2026-11-01&to=2026-11-30&user_id=5
 @admin_payment_bp.get("")
 @role_required("admin")
 def get_admin_payments():

@@ -219,5 +219,7 @@ POST /api/hairpiece-orders/<order_id>/cancel  Customer cancels an unpaid order
 POST /api/admin/hairpiece-orders          Invoice after a consultation (admin)
 GET  /api/admin/hairpiece-orders          All orders with customer (admin), ?status=
 PATCH /api/admin/hairpiece-orders/<order_id>/status  ordered / received / cancelled (admin)
+GET  /api/admin/reports/sales             Revenue per day, salon time (admin), ?days=7
+GET  /api/admin/reports/customer-spending Customers ranked by total paid (admin)
 POST /api/payments/setup-method           Save a card (NOT USED: out of scope)
 GET  /api/payments/method                 Saved card (NOT USED: out of scope)
