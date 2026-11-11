@@ -216,6 +216,8 @@ POST /api/hairpiece-orders                Customer orders an area system ($400)
 GET  /api/hairpiece-orders                The customer's orders
 GET  /api/hairpiece-orders/<order_id>     One of the customer's orders
 POST /api/hairpiece-orders/<order_id>/cancel  Customer cancels an unpaid order
+GET  /api/hairpiece-orders/saved-system   Customer's saved full system (My Hair System)
+POST /api/hairpiece-orders/reorder        Re-order the saved full system
 POST /api/admin/hairpiece-orders          Invoice after a consultation (admin)
 GET  /api/admin/hairpiece-orders          All orders with customer (admin), ?status=
 PATCH /api/admin/hairpiece-orders/<order_id>/status  ordered / received / cancelled (admin)

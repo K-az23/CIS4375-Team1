@@ -90,3 +90,8 @@ def validate_full_system_price(value):
     if not price.is_finite() or price < minimum or price > Decimal("99999.99"):
         return None, f"Must be a number of at least {minimum}"
     return price, None
+
+
+def specs_from_order(order):
+    """The order's hair options, keyed the way the catalog names them."""
+    return {field: getattr(order, column) for field, column in SPEC_COLUMNS.items()}

@@ -7,10 +7,13 @@ from ..logic.hairpiece_order import (
     OrderNotAllowed,
     build_customer_order,
     build_invoice,
+    build_reorder,
     cancel_customer_order,
     change_order_status,
+    latest_full_system,
     list_orders,
     order_dict,
+    saved_system_dict,
     validate_status_filter,
 )
 from ..logic.payment import PaymentError, PaymentNotAllowed
@@ -82,6 +85,33 @@ def get_hairpiece_orders():
     if user is None:
         return jsonify(error="Account not found or inactive"), 403
     return jsonify(orders=[order_dict(o) for o in list_orders(user=user)])
+
+
+# GET /api/hairpiece-orders/saved-system  (My Hair System page)
+@hairpiece_order_bp.get("/saved-system")
+@jwt_required()
+def get_saved_system():
+    user = _current_user()
+    if user is None:
+        return jsonify(error="Account not found or inactive"), 403
+
+    saved = latest_full_system(user)
+    return jsonify(saved_system=saved_system_dict(saved) if saved else None)
+
+
+# POST /api/hairpiece-orders/reorder  (copies the saved system into a new order)
+@hairpiece_order_bp.post("/reorder")
+@jwt_required()
+def reorder_saved_system():
+    user = _current_user()
+    if user is None:
+        return jsonify(error="Account not found or inactive"), 403
+
+    try:
+        order = build_reorder(user)
+    except OrderNotAllowed as error:
+        return jsonify(error=str(error)), error.status
+    return _save(order, 201)
 
 
 # GET /api/hairpiece-orders/<order_id>
