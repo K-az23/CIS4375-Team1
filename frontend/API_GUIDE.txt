@@ -182,6 +182,24 @@ POST /api/admin/payments/<payment_id>/refund
 Payment status values: pending, succeeded, failed, refunded, cancelled.
 charged_at is UTC; convert to local time for display.
 
+HAIR CATALOG (public, no login)
+GET  /api/catalog
+     {"system_types": [{"key": "area", "label": "Hair loss area system", "price": 400.0},
+                       {"key": "full", "label": "Full custom system", "price": 650.0}],
+      "options": {"hair_type": ["Wavy", "Curly", "Straight"],
+                  "base_type": ["Skin", "Lace"],
+                  "skin_thickness": ["Thin (.02mm)", "Thick (.08mm)"],
+                  "color": ["#1", "#2", "#3", "#4", "#5", "#6", "#7"],
+                  "grey_percent": [0, 10, 20, 30, 40, 50, 60, 70, 80],
+                  "density": ["Light", "Medium", "Heavy"],
+                  "dimensions": ["6 x 8", "7 x 9", "8 x 10"]},
+      "shipping_days": 10}
+     Same values as data/hairOptions.js, with snake_case keys
+     (hairType -> hair_type, greyPercent -> grey_percent, ...).
+     Use this instead of hairOptions.js so prices live in one place.
+     The full system price is a starting price; the real amount is set
+     on the invoice after the consultation.
+
 NOT USED (out of scope, do not connect):
 POST /api/payments/setup-method and GET /api/payments/method
 (card on file). Leave the Payment Method page as is.
