@@ -221,6 +221,19 @@ GET  /api/hairpiece-orders/<order_id>     One order; 404 if not theirs
 POST /api/hairpiece-orders/<order_id>/cancel
      Only while invoice_sent (unpaid); 409 after payment ("contact the salon").
 
+GET  /api/hairpiece-orders/saved-system   My Hair System page, Customer Dashboard
+     The customer's most recent PAID full system (from their consultation).
+     {"saved_system": {order_id, system_type: "full", system_label,
+       price, last_ordered, specs: {hair_type, base_type, skin_thickness,
+       color, grey_percent, density, dimensions}}}
+     or {"saved_system": null} if they don't have one yet.
+     specs use the same keys as the catalog, so SpecList can show them.
+POST /api/hairpiece-orders/reorder        "Re-order this system" button, no body
+     201: {"order": {...}} a new full order with the same specs and price,
+          status invoice_sent. Then pay it with create-intent.
+     404 no saved system; 409 an earlier re-order is still unpaid (pay or
+     cancel it first), or an option is no longer offered.
+
 POST /api/admin/hairpiece-orders          Invoice after a consultation (admin)
      Body: {"user_id": 5, "system_type": "full" or "area",
             "specs": {...same keys...}, "price": 725}

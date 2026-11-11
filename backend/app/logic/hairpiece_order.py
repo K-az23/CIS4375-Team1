@@ -5,6 +5,7 @@ from .catalog import (
     AREA_SYSTEM,
     FULL_SYSTEM,
     SYSTEM_TYPES,
+    specs_from_order,
     validate_full_system_price,
     validate_hair_specs,
 )
@@ -152,3 +153,76 @@ def validate_status_filter(status):
     if status and status not in ORDER_STATUSES:
         return f"Must be one of: {', '.join(ORDER_STATUSES)}"
     return None
+
+
+# Statuses that mean the customer paid for the order.
+PAID_STATUSES = ("pending", "ordered", "received")
+
+
+def latest_full_system(user):
+    """The customer's most recent paid full system, which they can re-order."""
+    return (
+        db.session.execute(
+            db.select(HairpieceOrder)
+            .where(
+                HairpieceOrder.user_id == user.user_id,
+                HairpieceOrder.order_type == FULL_SYSTEM,
+                HairpieceOrder.order_status.in_(PAID_STATUSES),
+            )
+            .order_by(HairpieceOrder.order_id.desc())
+        )
+        .scalars()
+        .first()
+    )
+
+
+def saved_system_dict(order):
+    return {
+        "order_id": order.order_id,
+        "system_type": order.order_type,
+        "system_label": SYSTEM_TYPES[order.order_type]["label"],
+        "price": float(order.price),
+        "last_ordered": order.placed_at.isoformat() if order.placed_at else None,
+        "specs": specs_from_order(order),
+    }
+
+
+def build_reorder(user):
+    """A new unpaid order copying the customer's saved full system and its price."""
+    saved = latest_full_system(user)
+    if saved is None:
+        raise OrderNotAllowed("No saved hair system to re-order", 404)
+
+    unpaid = (
+        db.session.execute(
+            db.select(HairpieceOrder).where(
+                HairpieceOrder.user_id == user.user_id,
+                HairpieceOrder.order_type == FULL_SYSTEM,
+                HairpieceOrder.order_status == "invoice_sent",
+            )
+        )
+        .scalars()
+        .first()
+    )
+    if unpaid is not None:
+        # Stops a double-click from creating two orders to pay for.
+        raise OrderNotAllowed(
+            f"Order #{unpaid.order_id} is waiting for payment; pay or cancel it first",
+            409,
+        )
+
+    columns, errors = validate_hair_specs(specs_from_order(saved), FULL_SYSTEM)
+    if errors:
+        # An option was removed from the catalog since the last order.
+        raise OrderNotAllowed(
+            "Your saved system has options we no longer offer; book a consultation",
+            409,
+        )
+
+    return HairpieceOrder(
+        user_id=user.user_id,
+        order_type=FULL_SYSTEM,
+        price=saved.price,
+        order_status="invoice_sent",
+        **columns,
+    )
