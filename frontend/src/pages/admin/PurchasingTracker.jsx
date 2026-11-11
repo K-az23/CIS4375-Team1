@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Plus, Check } from 'lucide-react';
 import DashboardHeader from '../../components/DashboardHeader';
 import Panel from '../../components/Panel';
@@ -6,6 +6,8 @@ import DataTable from '../../components/DataTable';
 import StatusBadge from '../../components/StatusBadge';
 import ChoiceGroup from '../../components/ChoiceGroup';
 import { hairOptions, pricing, specFields } from '../../data/hairOptions';
+import { isDemoMode } from '../../context/authUtils.js';
+import { getPurchases } from '../../services/purchasing';
 import { hairOrders, customers, money } from '../../data/sampleData';
 
 const filters = ['All', 'Invoice sent', 'Pending', 'Ordered', 'Received'];
@@ -13,7 +15,7 @@ const nextStatus = { Pending: 'Ordered', Ordered: 'Received' };
 const customFields = specFields;
 const emptySpecs = Object.fromEntries(customFields.map((f) => [f.key, null]));
 
-export default function PurchasingTracker() {
+function DemoPurchasingTracker() {
   const [orders, setOrders] = useState(hairOrders);
   const [filter, setFilter] = useState('All');
   const [showForm, setShowForm] = useState(false);
@@ -114,4 +116,111 @@ export default function PurchasingTracker() {
       </div>
     </>
   );
+}
+
+const purchaseStatuses = {
+  pending: 'Pending',
+  ordered: 'Ordered',
+  received: 'Received',
+  cancelled: 'Cancelled',
+};
+const purchaseFilters = ['All', ...Object.values(purchaseStatuses)];
+const purchaseDate = new Intl.DateTimeFormat('en-US', {
+  dateStyle: 'medium',
+  timeZone: 'America/Chicago',
+});
+
+function formatOrderedAt(value) {
+  if (!value) return '—';
+
+  // Until the API contract is confirmed, timezone-less timestamps are treated as UTC.
+  const timestamp = /(?:Z|[+-]\d{2}:\d{2})$/i.test(value) ? value : `${value}Z`;
+  const date = new Date(timestamp);
+  return Number.isNaN(date.getTime()) ? '—' : purchaseDate.format(date);
+}
+
+const purchaseColumns = [
+  { key: 'id', label: 'Purchase', nowrap: true },
+  { key: 'supplier', label: 'Supplier' },
+  { key: 'item', label: 'Item' },
+  { key: 'quantity', label: 'Quantity', align: 'right' },
+  { key: 'date', label: 'Ordered', nowrap: true },
+  { key: 'status', label: 'Status', render: (row) => <StatusBadge status={row.status} /> },
+];
+
+function toPurchaseRow(purchase) {
+  return {
+    id: `#${purchase.purchase_id}`,
+    supplier: purchase.supplier_name || '—',
+    item: purchase.item_name || '—',
+    quantity: purchase.quantity ?? '—',
+    date: formatOrderedAt(purchase.ordered_at),
+    status: purchaseStatuses[purchase.status] ?? 'Unknown',
+  };
+}
+
+function LivePurchasingTracker() {
+  const [rows, setRows] = useState(null);
+  const [filter, setFilter] = useState('All');
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadPurchases() {
+      try {
+        const purchases = await getPurchases({ signal: controller.signal });
+        if (!Array.isArray(purchases)) {
+          throw new Error('The server returned an invalid purchasing list.');
+        }
+
+        if (!controller.signal.aborted) setRows(purchases.map(toPurchaseRow));
+      } catch (error) {
+        if (!controller.signal.aborted) setError(error.message);
+      }
+    }
+
+    loadPurchases();
+    return () => controller.abort();
+  }, []);
+
+  const visible = rows?.filter((row) => filter === 'All' || row.status === filter);
+
+  return (
+    <>
+      <DashboardHeader eyebrow="Purchasing" title="Purchasing tracker" subtitle="Supplier orders and their current status." showIcons />
+      <div className="page-stack">
+        {!rows && !error && <p role="status">Loading purchases…</p>}
+        {error && <p role="alert" className="notice notice--warning">Couldn’t load purchases. {error}</p>}
+        {visible && (
+          <>
+            <div className="tabs" style={{ justifySelf: 'start' }} role="group" aria-label="Filter purchases by status">
+              {purchaseFilters.map((status) => (
+                <button
+                  type="button"
+                  key={status}
+                  className={`tabs__btn ${filter === status ? 'is-active' : ''}`}
+                  aria-pressed={filter === status}
+                  onClick={() => setFilter(status)}
+                >
+                  {status}
+                </button>
+              ))}
+            </div>
+            <Panel title={`${visible.length} purchases`}>
+              <DataTable
+                columns={purchaseColumns}
+                rows={visible}
+                emptyMessage={rows.length === 0 ? 'No purchases yet.' : 'No purchases with this status.'}
+              />
+            </Panel>
+          </>
+        )}
+      </div>
+    </>
+  );
+}
+
+export default function PurchasingTracker() {
+  return isDemoMode ? <DemoPurchasingTracker /> : <LivePurchasingTracker />;
 }
