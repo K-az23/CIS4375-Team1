@@ -36,6 +36,9 @@ jobs:
           pip install -r requirements-dev.txt
           ruff check .
 
+      - name: Tests
+        run: pytest -q
+
       - name: App starts and health check passes
         run: |
           python -c "

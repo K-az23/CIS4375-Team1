@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 from typing import ClassVar
 from urllib.parse import quote_plus
 
@@ -20,3 +21,10 @@ class Config:
     CLIENT_URL: ClassVar[str] = os.getenv("CLIENT_URL", "http://localhost:5173")
     SQLALCHEMY_DATABASE_URI: ClassVar[str] = _database_uri()
     SQLALCHEMY_ENGINE_OPTIONS: ClassVar[dict] = {"pool_pre_ping": True, "pool_recycle": 1800}
+    SECRET_KEY = os.getenv("SECRET_KEY")
+    JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+    JWT_ACCESS_TOKEN_EXPIRES = timedelta(minutes=30) # keeping to 30 min for now, better to change to an hour with refresh mechanism
+    SETMORE_API_BASE_URL = os.getenv("SETMORE_API_BASE_URL", "")
+    SETMORE_REFRESH_TOKEN = os.getenv("SETMORE_REFRESH_TOKEN", "")
+    STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
+    STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")

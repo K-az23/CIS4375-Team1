@@ -10,7 +10,9 @@ class Service(db.Model):
     price = db.Column(db.Numeric(10, 2), nullable=False)
     description = db.Column(db.String(255))
     setmore_service_id = db.Column(db.String(100), unique=True)
-    is_active = db.Column(db.Boolean, nullable=False, default=True)
+    is_active = db.Column(db.Boolean, nullable=False, default=True)  
+    appointments = db.relationship("Appointment", back_populates="service")
+    service_items = db.relationship("ServiceItem", back_populates="service")
 
     def to_public_dict(self):
         return {
