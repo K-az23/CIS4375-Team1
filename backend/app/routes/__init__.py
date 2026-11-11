@@ -4,6 +4,7 @@ def register_blueprints(app):
     from .admin import admin_user_bp
     from .auth import auth_bp
     from .catalog import catalog_bp
+    from .hairpiece_order import admin_hairpiece_order_bp, hairpiece_order_bp
     from .inventory import inventory_bp
     from .item_category import item_category_bp
     from .payment import admin_payment_bp, payment_bp, stripe_webhook_bp
@@ -21,3 +22,7 @@ def register_blueprints(app):
     app.register_blueprint(item_category_bp, url_prefix="/api/admin/item-categories")
     app.register_blueprint(inventory_bp, url_prefix="/api/admin/inventory-items")
     app.register_blueprint(catalog_bp, url_prefix="/api/catalog")
+    app.register_blueprint(hairpiece_order_bp, url_prefix="/api/hairpiece-orders")
+    app.register_blueprint(
+        admin_hairpiece_order_bp, url_prefix="/api/admin/hairpiece-orders"
+    )

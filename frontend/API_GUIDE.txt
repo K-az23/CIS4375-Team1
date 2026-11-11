@@ -200,6 +200,42 @@ GET  /api/catalog
      The full system price is a starting price; the real amount is set
      on the invoice after the consultation.
 
+HAIRPIECE ORDERS
+Order statuses: invoice_sent (waiting to be paid) -> pending (paid; the Stripe
+webhook sets this) -> ordered -> received, or cancelled.
+UI labels: invoice_sent = "Invoice sent" (customer side: "Invoice due"),
+pending = "Pending", ordered = "Ordered", received = "Received".
+
+POST /api/hairpiece-orders                Customer orders an area system online
+     Body: {"specs": {"hair_type": "Wavy", "base_type": "Skin",
+            "skin_thickness": "Thin (.02mm)", "color": "#3", "grey_percent": 20,
+            "density": "Medium", "dimensions": "7 x 9"}}
+     Every spec must be one of the GET /api/catalog options (snake_case keys).
+     201: {"order": {order_id, order_type: "area", system_label, price: 400.0,
+           order_status: "invoice_sent", hair_type, color_code, grey_percentage,
+           density, skin_type, base_type, dimensions, placed_at, user_id}}
+     400 lists each invalid spec in "details".
+     Next: POST /api/payments/create-intent {"order_id"} to pay it.
+GET  /api/hairpiece-orders                The customer's orders, newest first
+GET  /api/hairpiece-orders/<order_id>     One order; 404 if not theirs
+POST /api/hairpiece-orders/<order_id>/cancel
+     Only while invoice_sent (unpaid); 409 after payment ("contact the salon").
+
+POST /api/admin/hairpiece-orders          Invoice after a consultation (admin)
+     Body: {"user_id": 5, "system_type": "full" or "area",
+            "specs": {...same keys...}, "price": 725}
+     full: price required, at least 650; dimensions can be any text (custom).
+     area: price is always 400 (any price sent is ignored).
+     The customer then pays it like any order (create-intent).
+GET  /api/admin/hairpiece-orders          All orders, each with "customer"
+     {user_id, first_name, last_name, email} (admin)
+     Optional: ?status=invoice_sent|pending|ordered|received|cancelled
+PATCH /api/admin/hairpiece-orders/<order_id>/status   (admin)
+     Body: {"status": "ordered"}    Allowed: pending -> ordered -> received.
+     "cancelled" from invoice_sent or pending; 409 if the order is paid and
+     not refunded (refund first: POST /api/admin/payments/<id>/refund).
+     409 for any other jump (e.g. pending -> received).
+
 NOT USED (out of scope, do not connect):
 POST /api/payments/setup-method and GET /api/payments/method
 (card on file). Leave the Payment Method page as is.
