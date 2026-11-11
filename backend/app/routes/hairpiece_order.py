@@ -127,7 +127,7 @@ def create_invoice():
     return _save(order, 201)
 
 
-# GET /api/admin/hairpiece-orders?status=pending
+# GET /api/admin/hairpiece-orders?status=pending&user_id=5
 @admin_hairpiece_order_bp.get("")
 @role_required("admin")
 def get_admin_hairpiece_orders():
@@ -136,7 +136,13 @@ def get_admin_hairpiece_orders():
     if error:
         return jsonify(error="Validation failed", details={"status": error}), 400
 
-    orders = list_orders(status=status)
+    user_id = request.args.get("user_id")
+    if user_id and not user_id.isdigit():
+        return jsonify(
+            error="Validation failed", details={"user_id": "Must be a number"}
+        ), 400
+
+    orders = list_orders(status=status, user_id=int(user_id) if user_id else None)
     return jsonify(orders=[order_dict(o, include_customer=True) for o in orders])
 
 

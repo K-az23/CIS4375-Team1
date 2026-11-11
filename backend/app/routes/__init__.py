@@ -8,6 +8,7 @@ def register_blueprints(app):
     from .inventory import inventory_bp
     from .item_category import item_category_bp
     from .payment import admin_payment_bp, payment_bp, stripe_webhook_bp
+    from .report import report_bp
     from .service import admin_service_bp, service_bp
     from .user import user_bp
 
@@ -26,3 +27,4 @@ def register_blueprints(app):
     app.register_blueprint(
         admin_hairpiece_order_bp, url_prefix="/api/admin/hairpiece-orders"
     )
+    app.register_blueprint(report_bp, url_prefix="/api/admin/reports")

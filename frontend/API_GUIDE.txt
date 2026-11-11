@@ -236,6 +236,33 @@ PATCH /api/admin/hairpiece-orders/<order_id>/status   (admin)
      not refunded (refund first: POST /api/admin/payments/<id>/refund).
      409 for any other jump (e.g. pending -> received).
 
+REPORTS (admin)
+Revenue counts only succeeded payments (refunded/cancelled are excluded).
+Days follow the salon's clock (Houston), not UTC.
+
+GET  /api/admin/reports/sales?days=7      days: 1 to 90, default 7
+     {"days": [{"date": "2026-11-11", "label": "Wed", "value": 1245.0,
+                "today": true}, ...oldest first],
+      "total": 4520.0}
+     Same shape as weeklySales in sampleData (label, value, today), so
+     BarChart can use data.days directly. Admin Dashboard "Sales today" is
+     the entry with today: true.
+GET  /api/admin/reports/customer-spending
+     {"customers": [{user_id, first_name, last_name, email, total_spent,
+                     payment_count, last_payment_at}, ...highest first],
+      "average_spend": 399.99}
+     Reports "Top customers" and "Average spend per customer".
+     (lastVisit in the sample data was an appointment date; use
+     last_payment_at until appointments are connected.)
+GET  /api/admin/reports/profitability     501, not built yet
+GET  /api/admin/reports/inventory         501; use
+                                          GET /api/admin/inventory-items/low-stock
+
+FILTER BY CUSTOMER (admin, Customers page detail view)
+GET  /api/admin/hairpiece-orders?user_id=5
+GET  /api/admin/payments?user_id=5
+Both combine with ?status=.
+
 NOT USED (out of scope, do not connect):
 POST /api/payments/setup-method and GET /api/payments/method
 (card on file). Leave the Payment Method page as is.

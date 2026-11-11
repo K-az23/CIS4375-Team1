@@ -137,10 +137,12 @@ def cancel_customer_order(order):
     return order
 
 
-def list_orders(user=None, status=None):
+def list_orders(user=None, status=None, user_id=None):
     query = db.select(HairpieceOrder).order_by(HairpieceOrder.order_id.desc())
     if user is not None:
-        query = query.where(HairpieceOrder.user_id == user.user_id)
+        user_id = user.user_id
+    if user_id is not None:
+        query = query.where(HairpieceOrder.user_id == user_id)
     if status:
         query = query.where(HairpieceOrder.order_status == status)
     return db.session.execute(query).scalars().all()

@@ -229,6 +229,13 @@ def validate_payment_filters(args):
         else:
             filters["status"] = status
 
+    user_id = args.get("user_id")
+    if user_id:
+        if not user_id.isdigit():
+            errors["user_id"] = "Must be a number"
+        else:
+            filters["user_id"] = int(user_id)
+
     for field in ("from", "to"):
         if args.get(field):
             parsed = _parse_date(args[field], field, errors)
@@ -247,6 +254,10 @@ def list_all_payments(filters):
 
     if "status" in filters:
         query = query.where(Payment.status == filters["status"])
+    if "user_id" in filters:
+        query = query.join(
+            HairpieceOrder, Payment.order_id == HairpieceOrder.order_id
+        ).where(HairpieceOrder.user_id == filters["user_id"])
     # Date filters use charged_at, so they only match payments that went through.
     if "from" in filters:
         start = datetime.combine(filters["from"], time.min)
