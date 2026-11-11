@@ -38,6 +38,10 @@ def _update_payment(payment_intent_id, status):
     payment.status = status
     if status == "succeeded":
         payment.charged_at = datetime.now(UTC).replace(tzinfo=None)
+        order = payment.hairpiece_order
+        # Paid: Natasha can now order the system from the vendor.
+        if order is not None and order.order_status == "invoice_sent":
+            order.order_status = "pending"
     db.session.commit()
 
 
@@ -119,6 +123,8 @@ def start_order_payment(user, order_id):
         raise PaymentNotAllowed("Order not found", 404)
     if order.order_status == "cancelled":
         raise PaymentNotAllowed("This order was cancelled", 409)
+    if order.order_status != "invoice_sent":
+        raise PaymentNotAllowed("This order isn't waiting for payment", 409)
     if order.price is None or order.price <= 0:
         raise PaymentNotAllowed("This order has no price yet", 409)
 

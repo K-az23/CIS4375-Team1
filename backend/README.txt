@@ -212,5 +212,12 @@ GET  /api/admin/payments/<payment_id>     One payment with customer (admin)
 POST /api/admin/payments/<payment_id>/refund  Fully refund a card payment (admin)
 POST /api/webhooks/stripe                 Called by Stripe only (signature checked)
 GET  /api/catalog                         Hair system types, prices and options (public)
+POST /api/hairpiece-orders                Customer orders an area system ($400)
+GET  /api/hairpiece-orders                The customer's orders
+GET  /api/hairpiece-orders/<order_id>     One of the customer's orders
+POST /api/hairpiece-orders/<order_id>/cancel  Customer cancels an unpaid order
+POST /api/admin/hairpiece-orders          Invoice after a consultation (admin)
+GET  /api/admin/hairpiece-orders          All orders with customer (admin), ?status=
+PATCH /api/admin/hairpiece-orders/<order_id>/status  ordered / received / cancelled (admin)
 POST /api/payments/setup-method           Save a card (NOT USED: out of scope)
 GET  /api/payments/method                 Saved card (NOT USED: out of scope)
