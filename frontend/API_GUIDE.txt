@@ -354,8 +354,11 @@ POST /api/admin/appointments/sync?days=14 (admin)
      Syncs Setmore services first, then bookings for the next `days`.
      {"services": {...}, "appointments": {"created": [...],
       "updated": [...], "unchanged": [...], "skipped": [...]},
-      "start_date", "end_date"}
-     Needs SETMORE_REFRESH_TOKEN in backend/.env.
+      "ignored_outside_range": 0, "start_date", "end_date"}
+     Only bookings between start_date and end_date are saved.
+     502 {"error": "Couldn't sync with Setmore: ..."} if Setmore can't be
+     reached or the token is missing. Needs SETMORE_REFRESH_TOKEN in
+     backend/.env.
 
 CONTACT (public)
 POST /api/contact                         Body: {"full_name", "email", "phone"?,

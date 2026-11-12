@@ -99,14 +99,31 @@ def list_staff():
     return _request("GET", "/bookingapi/staffs")
 
 # get appointments from Setmore by date range
-def list_appointments(start_date, end_date, customer_details=True, **params):
+# Setmore's booking API reads dates as day-month-year; an ISO date
+# (2026-11-12) isn't understood and it returns old bookings instead.
+SETMORE_DATE_FORMAT = "%d-%m-%Y"
+# Safety stop so a cursor that never ends can't loop forever.
+MAX_APPOINTMENT_PAGES = 20
+
+
+def list_appointments(start_date, end_date, customer_details=True):
+    """Every booking from start_date to end_date (date objects), all pages."""
     query = {
-        "startDate": start_date,
-        "endDate": end_date,
+        "startDate": start_date.strftime(SETMORE_DATE_FORMAT),
+        "endDate": end_date.strftime(SETMORE_DATE_FORMAT),
         "customerDetails": str(customer_details).lower(),
-        **params,
     }
-    return _request("GET", "/bookingapi/appointments", params=query)
+    bookings = []
+    for _ in range(MAX_APPOINTMENT_PAGES):
+        body = _request("GET", "/bookingapi/appointments", params=query)
+        data = body.get("data") or {}
+        bookings.extend(data.get("appointments") or [])
+        # Setmore returns results in pages; the cursor asks for the next one.
+        cursor = data.get("cursor")
+        if not cursor or cursor == query.get("cursor"):
+            break
+        query["cursor"] = cursor
+    return bookings
 
 def list_service_categories():
     """Fetch Setmore service categories."""
