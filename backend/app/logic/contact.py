@@ -116,10 +116,6 @@ def send_contact_notification(name, email, message):
             timeout=REQUEST_TIMEOUT_SECONDS
         )
 
-        print("AWS Response Status:", response.status_code)
-        print("AWS Response Headers:", response.headers)
-        print("AWS Response Body:", response.text)
-
     except requests.RequestException as exc:
         raise ContactError(f"Could not reach contact service: {type(exc).__name__}") from None
 

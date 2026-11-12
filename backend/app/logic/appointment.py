@@ -222,10 +222,26 @@ def sync_setmore_appointments(bookings, dry_run=True):
 
         appointment_time = to_db_datetime(parsed_time)
 
+        customer_name = normalize_name(
+            customer.get("first_name"),
+            customer.get("last_name"),
+        )
+
+        customer_email = normalize_email(
+            customer.get("email_id")
+        )
+
+        customer_phone = normalize_setmore_phone(
+            customer
+        )
+
         appointment = db.session.get(Appointment, booking_id)
         values = {
             "service_id": service.service_id,
             "user_id": user.user_id if user else None,
+            "customer_name": customer_name or None,
+            "customer_email": customer_email,
+            "customer_phone": customer_phone,
             "appointment_time": appointment_time
         }
 
@@ -264,7 +280,7 @@ def sync_setmore_appointments(bookings, dry_run=True):
 # --- Admin logic
 
 # Returns local appointments for the admin calendar
-def get_admin_appointments(start_date=None, end_date=None):
+def get_admin_appointments(start_date=None, end_date=None, user_id=None):
     query = db.select(Appointment).order_by(Appointment.appointment_time)
 
     if start_date:
@@ -277,6 +293,11 @@ def get_admin_appointments(start_date=None, end_date=None):
         end_datetime = datetime.combine(end_date, time.max)
         query = query.where(
             Appointment.appointment_time <= end_datetime
+        )
+
+    if user_id is not None:
+        query = query.where(
+            Appointment.user_id == user_id
         )
 
     return db.session.scalars(query).all()
@@ -390,15 +411,20 @@ def serialize_appointment(appointment):
             "duration_minutes": service.duration_minutes,
             "price": float(service.price),
         } if service else None,
+
         "customer": {
             "user_id": user.user_id,
             "first_name": user.first_name,
             "last_name": user.last_name,
             "email": user.email,
-            "phone": user.phone
-        } if user else None,
+            "phone": user.phone,
+        } if user else {
+            "user_id": None,
+            "name": appointment.customer_name,
+            "email": appointment.customer_email,
+            "phone": appointment.customer_phone,
+        },
     }
-
 
 
 # --- User Logic
