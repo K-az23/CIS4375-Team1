@@ -280,7 +280,7 @@ def sync_setmore_appointments(bookings, dry_run=True):
 # --- Admin logic
 
 # Returns local appointments for the admin calendar
-def get_admin_appointments(start_date=None, end_date=None):
+def get_admin_appointments(start_date=None, end_date=None, user_id=None):
     query = db.select(Appointment).order_by(Appointment.appointment_time)
 
     if start_date:
@@ -293,6 +293,11 @@ def get_admin_appointments(start_date=None, end_date=None):
         end_datetime = datetime.combine(end_date, time.max)
         query = query.where(
             Appointment.appointment_time <= end_datetime
+        )
+
+    if user_id is not None:
+        query = query.where(
+            Appointment.user_id == user_id
         )
 
     return db.session.scalars(query).all()

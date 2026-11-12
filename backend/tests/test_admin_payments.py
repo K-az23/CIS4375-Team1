@@ -3,10 +3,10 @@ from unittest import mock
 
 import pytest
 import stripe
+
 from app.extensions import db
 from app.logic.payment import PaymentError, PaymentNotAllowed, cancel_order_payment
 from app.models import Payment
-
 from tests.helpers import auth_header, make_order, make_payment, make_user, reload
 
 

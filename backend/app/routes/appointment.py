@@ -75,6 +75,10 @@ def get_appointment(setmore_booking_id):
 def admin_get_appointments():
     start = request.args.get("start")
     end = request.args.get("end")
+    user_id = request.args.get("user_id")
+
+    if user_id and not user_id.isdigit():
+        return jsonify(error="user_id must be a number"), 400
 
     try:
         start_date = date.fromisoformat(start) if start else None
@@ -87,7 +91,8 @@ def admin_get_appointments():
 
     appointments = get_admin_appointments(
         start_date=start_date,
-        end_date=end_date
+        end_date=end_date,
+        user_id=int(user_id) if user_id else None,
     )
     return jsonify(
         appointments=[
