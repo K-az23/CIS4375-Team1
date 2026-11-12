@@ -1,16 +1,18 @@
 import { useState } from 'react';
-import { ArrowRight, MapPin, Mail, Clock, MessageSquare, Check } from 'lucide-react';
+import { ArrowRight, MapPin, Mail, Clock, MessageSquare, Check, Info } from 'lucide-react';
 import PageHero from '../../components/PageHero';
 import SocialLinks from '../../components/SocialLinks';
+import { api } from '../../api/client';
 import { business } from '../../data/business';
 import { images } from '../../data/images';
 
+// Labels shown in the form -> the reason codes the backend accepts.
 const reasons = [
-  'General question',
-  'Hair replacement consultation',
-  'Hair system order',
-  'Appointment question',
-  'Memberships',
+  { label: 'General question', value: 'general_question' },
+  { label: 'Hair replacement consultation', value: 'hair_replacement_consultation' },
+  { label: 'Hair system order', value: 'hair_system_order' },
+  { label: 'Appointment question', value: 'appointment_question' },
+  { label: 'Memberships', value: 'membership' },
 ];
 
 const emptyForm = { name: '', email: '', phone: '', reason: '', message: '' };
@@ -18,15 +20,36 @@ const emptyForm = { name: '', email: '', phone: '', reason: '', message: '' };
 export default function Contact() {
   const [form, setForm] = useState(emptyForm);
   const [sent, setSent] = useState(false);
+  const [error, setError] = useState('');
+  const [sending, setSending] = useState(false);
 
   function update(e) {
+    setSent(false);
     setForm({ ...form, [e.target.name]: e.target.value });
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
-    setSent(true);
-    setForm(emptyForm);
+    setError('');
+    setSending(true);
+    try {
+      await api('/api/contact', {
+        method: 'POST',
+        body: {
+          full_name: form.name,
+          email: form.email,
+          phone: form.phone,
+          reason: form.reason,
+          message: form.message,
+        },
+      });
+      setSent(true);
+      setForm(emptyForm);
+    } catch (err) {
+      setError(err.status === 502 ? "We couldn't send your message right now. Please email us instead." : err.message);
+    } finally {
+      setSending(false);
+    }
   }
 
   return (
@@ -43,6 +66,7 @@ export default function Contact() {
               </div>
 
               {sent && <p className="notice" style={{ marginBottom: 16 }}><Check size={16} /> Message sent. We'll get back to you shortly.</p>}
+              {error && <p className="notice notice--warning" style={{ marginBottom: 16 }}><Info size={16} /> {error}</p>}
 
               <form className="form" onSubmit={handleSubmit}>
                 <div className="form-row">
@@ -64,7 +88,7 @@ export default function Contact() {
                     <label htmlFor="reason">Reason *</label>
                     <select id="reason" name="reason" required value={form.reason} onChange={update}>
                       <option value="" disabled>Select an option</option>
-                      {reasons.map((r) => <option key={r}>{r}</option>)}
+                      {reasons.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
                     </select>
                   </div>
                 </div>
@@ -74,7 +98,7 @@ export default function Contact() {
                   <span className="field-hint" style={{ textAlign: 'right' }}>{form.message.length}/500</span>
                 </div>
                 <div>
-                  <button type="submit" className="btn btn-dark">Send message <ArrowRight size={18} /></button>
+                  <button type="submit" className="btn btn-dark" disabled={sending}>{sending ? 'Sending…' : <>Send message <ArrowRight size={18} /></>}</button>
                 </div>
               </form>
             </div>
