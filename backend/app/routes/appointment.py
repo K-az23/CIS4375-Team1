@@ -1,4 +1,5 @@
-from datetime import date
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
@@ -11,7 +12,10 @@ from ..logic.appointment import (
     get_user_appointments,
     mark_appointment_no_show,
     serialize_appointment,
+    sync_setmore_appointments,
 )
+from ..logic.service import sync_services_from_setmore
+from ..logic.setmore import list_appointments
 from ..utils.auth import role_required
 
 appointment_bp = Blueprint(
@@ -221,4 +225,53 @@ def admin_complete_appointment(setmore_booking_id):
     return jsonify(
         message="Appointment completed",
         appointment=serialize_appointment(appointment),
+    ), 200
+
+
+# POST /api/admin/appointments/sync?days=14
+# will sync setmore services first, then syncs setmore appointments into RDS
+@admin_appointment_bp.post("/sync")
+@role_required("admin")
+def admin_sync_appointments():
+    days_raw = request.args.get("days", "14")
+
+    try:
+        days = int(days_raw)
+    except ValueError:
+        return jsonify(error="days must be an integer"), 400
+
+    if days < 1:
+        return jsonify(error="days must be at least 1"), 400
+
+    service_summary = sync_services_from_setmore(
+        dry_run=False
+    )
+
+    salon_timezone = ZoneInfo("America/Chicago")
+    start_date = datetime.now(salon_timezone).date()
+    end_date = start_date + timedelta(days=days)
+
+    setmore_response = list_appointments(
+        start_date=start_date.isoformat(),
+        end_date=end_date.isoformat(),
+    )
+
+    bookings = setmore_response.get(
+        "data",
+        {}
+    ).get(
+        "appointments",
+        []
+    )
+
+    appointment_summary = sync_setmore_appointments(
+        bookings,
+        dry_run=False,
+    )
+
+    return jsonify(
+        services=service_summary,
+        appointments=appointment_summary,
+        start_date=start_date.isoformat(),
+        end_date=end_date.isoformat(),
     ), 200

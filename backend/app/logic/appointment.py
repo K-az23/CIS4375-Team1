@@ -205,7 +205,13 @@ def sync_setmore_appointments(bookings, dry_run=True):
         service = find_service_for_setmore_booking(booking)
 
         if service is None:
-            summary["skipped"].append("service_not_matched")
+            summary["skipped"].append(
+                {
+                    "booking_id": booking_id,
+                    "reason": "service_not_matched",
+                    "service_key": booking.get("service_key"),
+                }
+            )
             continue
 
         parsed_time = parse_setmore_time(booking.get("start_time"))
