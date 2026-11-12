@@ -1,28 +1,17 @@
 from ..extensions import db
-from ..models import User
+from ..models import Role, User
+from ..models.appointments import Appointment
+from ..utils.phone import normalize_phone
 
 MAX_FIRST_NAME_LENGTH = 100
 MAX_LAST_NAME_LENGTH = 100
 MAX_EMAIL_LENGTH = 150
-PHONE_DIGITS = 10
 
 
 
 # normalizes emails before being stored in db
 def _normalize_email(value):
     return value.strip().lower()
-
-
-# converts the 10-digit input to a +1 format ~ should help with SMS
-def _normalize_phone(value):
-    if not isinstance(value, str):
-        return None
-
-    value = value.strip()
-    if len(value) != PHONE_DIGITS or not value.isdigit():
-        return None
-
-    return f"+1{value}"
 
 
 #check for whether another user already has tried email
@@ -82,7 +71,7 @@ def validate_user_update_data(data, user_id):
             else:
                 cleaned["email"] = email
     if "phone" in data:
-        phone = _normalize_phone(data["phone"])
+        phone = normalize_phone(data["phone"])
 
         if phone is None:
             errors["phone"] = "Must contain 10 digits"
@@ -91,6 +80,36 @@ def validate_user_update_data(data, user_id):
 
     return cleaned, errors
 
+
+# returns customers for an admin customer list
+# last_visit is the newest completed appointment for each customer
+def get_admin_customers():
+    last_visit = (
+        db.select(
+            db.func.max(Appointment.appointment_time)
+        )
+        .where(
+            Appointment.user_id == User.user_id,
+            Appointment.status == "completed",
+        )
+        .correlate(User)
+        .scalar_subquery()
+    )
+
+    query = (
+        db.select(
+            User,
+            last_visit.label("last_visit"),
+        )
+        .join(User.role)
+        .where(Role.name == "customer")
+        .order_by(
+            User.last_name,
+            User.first_name,
+        )
+    )
+
+    return db.session.execute(query).all()
 
 
 # ------- will be for what the admin can 'update' on the user such as, is_active/is_member/no_show

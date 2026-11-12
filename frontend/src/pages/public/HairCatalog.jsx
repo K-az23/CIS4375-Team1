@@ -1,23 +1,62 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, Check } from 'lucide-react';
 import PageHero from '../../components/PageHero';
 import SectionHeader from '../../components/SectionHeader';
 import ChoiceGroup from '../../components/ChoiceGroup';
 import SpecList from '../../components/SpecList';
+import { api } from '../../api/client';
 import { hairOptions, pricing, specFields, formatSpec } from '../../data/hairOptions';
 import { business } from '../../data/business';
 import { images } from '../../data/images';
 
 const emptySpecs = Object.fromEntries(specFields.map((f) => [f.key, null]));
 
+// Backend catalog keys -> the keys this page uses.
+const SPEC_KEYS_FROM_API = {
+  hair_type: 'hairType',
+  base_type: 'baseType',
+  skin_thickness: 'skinThickness',
+  color: 'color',
+  grey_percent: 'greyPercent',
+  density: 'density',
+  dimensions: 'dimensions',
+};
+
+// Until the backend answers (or if it can't), the page uses the local copy in data/hairOptions.js.
+const localCatalog = {
+  options: hairOptions,
+  areaPrice: pricing.areaSystem,
+  customFrom: pricing.customFrom,
+  shippingDays: pricing.shippingDays,
+};
+
+function fromApi(data) {
+  const prices = Object.fromEntries(data.system_types.map((t) => [t.key, t.price]));
+  return {
+    options: Object.fromEntries(
+      Object.entries(data.options).map(([key, values]) => [SPEC_KEYS_FROM_API[key] ?? key, values]),
+    ),
+    areaPrice: prices.area ?? pricing.areaSystem,
+    customFrom: prices.full ?? pricing.customFrom,
+    shippingDays: data.shipping_days ?? pricing.shippingDays,
+  };
+}
+
 export default function HairCatalog() {
   const navigate = useNavigate();
   const [specs, setSpecs] = useState(emptySpecs);
   const [agreed, setAgreed] = useState(false);
+  const [catalog, setCatalog] = useState(localCatalog);
+
+  useEffect(() => {
+    api('/api/catalog')
+      .then((data) => setCatalog(fromApi(data)))
+      .catch(() => {});
+  }, []);
 
   const isComplete = specFields.every((f) => specs[f.key] !== null);
-  const price = pricing.areaSystem;
+  const price = catalog.areaPrice;
 
   function choose(key, value) {
     setSpecs({ ...specs, [key]: value });
@@ -25,7 +64,7 @@ export default function HairCatalog() {
 
   function goToReview() {
     navigate('/checkout', {
-      state: { order: { title: 'Hair loss area system', specs, price } },
+      state: { order: { title: 'Hair loss area system', specs, price, shippingDays: catalog.shippingDays } },
     });
   }
 
@@ -34,7 +73,7 @@ export default function HairCatalog() {
       <PageHero
         eyebrow="Hair Catalog"
         title="Order your hair system"
-        subtitle={`Systems are made to order and arrive at the salon in about ${pricing.shippingDays} days.`}
+        subtitle={`Systems are made to order and arrive at the salon in about ${catalog.shippingDays} days.`}
         image={images.heroResult}
         imagePosition="center 10%"
       />
@@ -50,7 +89,7 @@ export default function HairCatalog() {
             <div className="option-card option-card--dark">
               <span className="eyebrow" style={{ color: 'var(--gold-light)' }}>First-time clients</span>
               <h3>Full custom system</h3>
-              <div className="option-card__price">${pricing.customFrom}+<small>after consultation</small></div>
+              <div className="option-card__price">${catalog.customFrom}+<small>after consultation</small></div>
               <ul>
                 <li><Check size={16} /> In-salon consultation to take your order</li>
                 <li><Check size={16} /> You receive an invoice to pay online</li>
@@ -61,7 +100,7 @@ export default function HairCatalog() {
             <div className="option-card">
               <span className="eyebrow">Order online</span>
               <h3>Hair loss area system</h3>
-              <div className="option-card__price">${pricing.areaSystem}<small>per system</small></div>
+              <div className="option-card__price">${catalog.areaPrice}<small>per system</small></div>
               <ul>
                 <li><Check size={16} /> Customize every option below</li>
                 <li><Check size={16} /> Sizes 6 x 8, 7 x 9 or 8 x 10</li>
@@ -87,7 +126,7 @@ export default function HairCatalog() {
                 <ChoiceGroup
                   key={field.key}
                   field={field}
-                  options={hairOptions[field.key]}
+                  options={catalog.options[field.key] ?? hairOptions[field.key]}
                   value={specs[field.key]}
                   onChange={choose}
                 />

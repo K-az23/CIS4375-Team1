@@ -1,7 +1,8 @@
 from decimal import Decimal
 
 from ..extensions import db
-from ..models import Service
+from ..models.service import Service
+from .setmore import list_services
 
 MAX_NAME_LENGTH = 100
 MAX_DESCRIPTION_LENGTH = 255
@@ -97,3 +98,75 @@ def setmore_service_id_taken(setmore_id, exclude_service_id=None):
     if exclude_service_id is not None:
         query = query.where(Service.service_id != exclude_service_id)
     return db.session.execute(query).first() is not None
+
+
+# helper to sync setmore services into the local service table
+# this will only read from setmore
+def sync_services_from_setmore(dry_run=True):
+    result = list_services()
+    services = result.get("data", {}).get("services", [])
+    summary = {
+        "created": [],
+        "updated": [],
+        "unchanged": [],
+    }
+
+    for setmore_service in services:
+        setmore_key = setmore_service.get("key")
+        service_name = setmore_service.get("service_name")
+
+        if not setmore_key or not service_name:
+            continue
+
+        description = setmore_service.get("description")
+
+        if description:
+            description = description.strip()[:MAX_DESCRIPTION_LENGTH]
+
+        # prefer matching by the real setmore key
+        service = db.session.scalar(
+            db.select(Service).where(
+                Service.setmore_service_id == setmore_key
+            )
+        )
+
+        # existing local / test data may not have real keys
+        if service is None:
+            service = db.session.scalar(
+                db.select(Service).where(
+                    Service.service_name == service_name
+                )
+            )
+
+        values = {
+            "service_name": service_name,
+            "duration_minutes": setmore_service.get("duration"),
+            "price": Decimal(str(setmore_service.get("cost", 0))),
+            "description": description or None,
+            "setmore_service_id": setmore_key,
+        }
+
+        if service is None:
+            summary["created"].append(service_name)
+
+            if not dry_run:
+                db.session.add(Service(**values, is_active=True))
+
+            continue
+        changed = any(
+            getattr(service, field) != value
+            for field, value in values.items()
+        )
+
+        if not changed:
+            summary["unchanged"].append(service_name)
+            continue
+        summary["updated"].append(service_name)
+
+        if not dry_run:
+            for field, value in values.items():
+                setattr(service, field, value)
+
+    if not dry_run:
+        db.session.commit()
+    return summary

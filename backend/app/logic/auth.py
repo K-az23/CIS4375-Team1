@@ -1,15 +1,11 @@
 from ..extensions import db
 from ..models import Role, User
+from ..utils.phone import normalize_phone
 
 MAX_FIRST_NAME_LENGTH = 100
 MAX_LAST_NAME_LENGTH = 100
 MAX_EMAIL_LENGTH = 150
-
-# Registration accpets exactly 10 digits for phone numbers
-# Will automatically add '+1' before storing in db for standardized SMS integration
-MAX_PHONE_DIGITS = 10
 MIN_PASSWORD_LENGTH = 8
-
 #bcrypt only uses passwords up to 72 bytes, so putting a cap on max password.
 MAX_PASSWORD_LENGTH = 72
 
@@ -32,20 +28,6 @@ def _normalize_email(value):
     # of the same email address are not treated as separate accounts
     return value.strip().lower()
 
-
-def _normalize_phone(value):
-    # registration will only accept exactly 10 digits
-    # display formatting should be handled in frontend
-    # the db will store with +1 so it can be consistently with SMS integrations.
-    if not isinstance(value, str):
-        return None
-
-    value = value.strip()
-
-    if len(value) != MAX_PHONE_DIGITS or not value.isdigit():
-        return None
-
-    return f"+1{value}"
 
 def validate_registration_data(data):
     """Return cleaned registration fields and validation erros."""
@@ -105,7 +87,7 @@ def validate_registration_data(data):
     if not isinstance(phone, str) or not phone.strip():
         errors["phone"] = "Required"
     else:
-        normalized_phone = _normalize_phone(phone)
+        normalized_phone = normalize_phone(phone)
 
         if normalized_phone is None:
             errors["phone"] = "Must contain exactly 10 digits"
@@ -215,5 +197,30 @@ def validate_reset_password_data(data):
         errors["password"] = (f"Password is too long. Must be less than {MAX_PASSWORD_LENGTH} characters.")
     else:
         cleaned["password"] = password
+
+    return cleaned, errors
+
+# validates a logged-in user's request to change their password
+def validate_change_password_data(data):
+    cleaned = {}
+    errors = {}
+
+    current_password = data.get("current_password")
+    if not isinstance(current_password, str) or not current_password:
+        errors["current_password"] = "Required"
+    else:
+        cleaned["current_password"] = current_password
+
+    new_password = data.get("new_password")
+    if not isinstance(new_password, str) or not new_password:
+        errors["new_password"] = "Required"
+    elif len(new_password) < MIN_PASSWORD_LENGTH:
+        errors["new_password"] = f"Must be at least {MIN_PASSWORD_LENGTH} characters"
+    elif len(new_password.encode("utf-8")) > MAX_PASSWORD_LENGTH:
+        errors["new_password"] = f"Must be {MAX_PASSWORD_LENGTH} bytes or fewer"
+    elif new_password == current_password:
+        errors["new_password"] = "Must be different from the current password"
+    else:
+        cleaned["new_password"] = new_password
 
     return cleaned, errors
