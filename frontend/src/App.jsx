@@ -23,7 +23,8 @@ const BookAppointment = lazy(() => import('./pages/customer/BookAppointment'));
 const Appointments = lazy(() => import('./pages/customer/Appointments'));
 const Orders = lazy(() => import('./pages/customer/Orders'));
 const HairSpecs = lazy(() => import('./pages/customer/HairSpecs'));
-const PaymentMethod = lazy(() => import('./pages/customer/PaymentMethod'));
+// Card on file is turned off (no-show fees aren't charged), so this page is hidden.
+// const PaymentMethod = lazy(() => import('./pages/customer/PaymentMethod'));
 const PaymentHistory = lazy(() => import('./pages/customer/PaymentHistory'));
 const CustomerSettings = lazy(() => import('./pages/customer/CustomerSettings'));
 
@@ -82,7 +83,7 @@ export default function App() {
             <Route path="appointments" element={<Appointments />} />
             <Route path="orders" element={<Orders />} />
             <Route path="hair-system" element={<HairSpecs />} />
-            <Route path="payment-method" element={<PaymentMethod />} />
+            {/* <Route path="payment-method" element={<PaymentMethod />} /> */}
             <Route path="payments" element={<PaymentHistory />} />
             <Route path="settings" element={<CustomerSettings />} />
           </Route>

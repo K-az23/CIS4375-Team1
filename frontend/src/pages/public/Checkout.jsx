@@ -92,7 +92,10 @@ function PayForm({ order, onPaid }) {
   return (
     <form className="stack" onSubmit={handlePay}>
       {error && <p className="notice notice--warning"><Info size={16} /> {error}</p>}
-      <PaymentElement />
+      <PaymentElement
+        // Without this, a bad publishable key leaves an empty form and a Pay button that hangs.
+        onLoadError={() => setError("The card form couldn't load. Check that the Stripe keys are from the same sandbox, then reload.")}
+      />
       <button type="submit" className="btn btn-dark btn-block" disabled={!stripe || paying}>
         {paying ? 'Paying…' : `Pay ${money(order.price)}`}
       </button>
