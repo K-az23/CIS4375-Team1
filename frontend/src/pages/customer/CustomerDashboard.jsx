@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { ChevronRight, CalendarPlus, CalendarCheck, ShoppingCart, Package, Info, Scissors } from 'lucide-react';
 import Modal from '../../components/Modal';
@@ -9,7 +9,9 @@ import SpecList from '../../components/SpecList';
 import { useAuth } from '../../context/useAuth.js';
 import { business } from '../../data/business';
 import { specFields, formatSpec } from '../../data/hairOptions';
-import { currentCustomer, nextAppointment, customerOrders, money } from '../../data/sampleData';
+import { api } from '../../api/client';
+import { formatDate, formatDateTime, orderStatusLabel, orderTitle, parseUtc, specsFromCatalogKeys } from '../../api/format';
+import { money } from '../../data/sampleData';
 
 const actions = [
   { to: '/account/book', icon: CalendarPlus, title: 'Book an appointment', text: 'Choose a service, day and time' },
@@ -18,11 +20,20 @@ const actions = [
 ];
 
 const orderColumns = [
-  { key: 'product', label: 'Item' },
-  { key: 'date', label: 'Date', nowrap: true },
-  { key: 'status', label: 'Status', nowrap: true, render: (r) => <StatusBadge status={r.status} /> },
-  { key: 'amount', label: 'Amount', align: 'right', render: (r) => money(r.amount) },
+  { key: 'item', label: 'Item', render: (r) => orderTitle(r) },
+  { key: 'placed_at', label: 'Date', nowrap: true, render: (r) => formatDate(r.placed_at) },
+  { key: 'status', label: 'Status', nowrap: true, render: (r) => <StatusBadge status={orderStatusLabel(r.order_status)} /> },
+  { key: 'price', label: 'Amount', align: 'right', render: (r) => money(r.price) },
 ];
+
+// Appointments come from Setmore through the backend. Until that endpoint is
+// available, the card just says there's nothing booked.
+function nextUpcoming(appointments) {
+  const now = Date.now();
+  return appointments
+    .filter((a) => a.status === 'booked' && parseUtc(a.appointment_time).getTime() >= now)
+    .sort((a, b) => parseUtc(a.appointment_time) - parseUtc(b.appointment_time))[0] ?? null;
+}
 
 const keySpecs = ['color', 'greyPercent', 'density', 'dimensions'];
 
@@ -31,9 +42,19 @@ export default function CustomerDashboard() {
   const { user } = useAuth();
   const [showWelcome, setShowWelcome] = useState(Boolean(state?.newAccount));
 
-  const firstName = user?.firstName || currentCustomer.firstName;
-  const balanceDue = customerOrders.find((o) => o.status === 'Invoice due');
-  const system = currentCustomer.savedSystem;
+  const [orders, setOrders] = useState([]);
+  const [system, setSystem] = useState(null);
+  const [nextAppointment, setNextAppointment] = useState(null);
+
+  useEffect(() => {
+    api('/api/hairpiece-orders').then((data) => setOrders(data.orders)).catch(() => {});
+    api('/api/hairpiece-orders/saved-system').then((data) => setSystem(data.saved_system)).catch(() => {});
+    api('/api/appointments').then((data) => setNextAppointment(nextUpcoming(data.appointments ?? []))).catch(() => {});
+  }, []);
+
+  const firstName = user?.firstName || '';
+  const balanceDue = orders.find((o) => o.order_status === 'invoice_sent');
+  const systemSpecs = system ? specsFromCatalogKeys(system.specs) : null;
 
   return (
     <div className="overview">
@@ -59,8 +80,8 @@ export default function CustomerDashboard() {
         <div className="balance-bar" role="status">
           <Info size={20} />
           <div className="balance-bar__text">
-            <strong>Balance due: {money(balanceDue.amount)}</strong>
-            <span>{balanceDue.product}</span>
+            <strong>Balance due: {money(balanceDue.price)}</strong>
+            <span>{orderTitle(balanceDue)}</span>
           </div>
           <Link to="/account/orders" className="btn btn-dark">Pay now</Link>
         </div>
@@ -85,12 +106,17 @@ export default function CustomerDashboard() {
             <span className="icon-circle"><CalendarCheck size={18} /></span>
             <span className="overview-card__label">Next appointment</span>
           </div>
-          <div className="overview-card__value">{nextAppointment.date}</div>
-          <SpecList rows={[
-            ['Time', nextAppointment.time],
-            ['Service', nextAppointment.service],
-            ['Location', 'Reserve Salon and Spa, Rm 53'],
-          ]} />
+          {nextAppointment ? (
+            <>
+              <div className="overview-card__value">{formatDateTime(nextAppointment.appointment_time)}</div>
+              <SpecList rows={[
+                ['Service', nextAppointment.service?.service_name ?? '—'],
+                ['Location', 'Reserve Salon and Spa, Rm 53'],
+              ]} />
+            </>
+          ) : (
+            <p className="muted">No upcoming appointment. Book your next visit any time.</p>
+          )}
           <div className="overview-card__footer">
             <Link to="/account/appointments" className="btn btn-outline">View appointments</Link>
           </div>
@@ -101,7 +127,11 @@ export default function CustomerDashboard() {
             <span className="icon-circle"><Scissors size={18} /></span>
             <span className="overview-card__label">My hair system</span>
           </div>
-          <SpecList rows={specFields.filter((f) => keySpecs.includes(f.key)).map((f) => [f.label, formatSpec(f.key, system.specs[f.key])])} />
+          {systemSpecs ? (
+            <SpecList rows={specFields.filter((f) => keySpecs.includes(f.key)).map((f) => [f.label, formatSpec(f.key, systemSpecs[f.key])])} />
+          ) : (
+            <p className="muted">Your custom system is saved here after your consultation.</p>
+          )}
           <div className="overview-card__footer">
             <Link to="/account/hair-system" className="btn btn-outline">View full details</Link>
           </div>
@@ -109,7 +139,11 @@ export default function CustomerDashboard() {
       </div>
 
       <Panel title="Recent orders" linkLabel="View all" to="/account/orders">
-        <DataTable columns={orderColumns} rows={customerOrders} />
+        <DataTable
+          columns={orderColumns}
+          rows={orders.slice(0, 3).map((o) => ({ ...o, id: o.order_id }))}
+          emptyMessage="No orders yet."
+        />
       </Panel>
 
       <p className="overview__help">

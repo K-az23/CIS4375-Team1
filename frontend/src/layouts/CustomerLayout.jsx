@@ -1,6 +1,6 @@
 import { Outlet, useNavigate } from 'react-router-dom';
 import {
-  LayoutDashboard, CalendarPlus, CalendarCheck, Package, Scissors, CreditCard, Receipt, Settings, LogOut,
+  LayoutDashboard, CalendarPlus, CalendarCheck, Package, Scissors, Receipt, Settings, LogOut,
 } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
@@ -12,7 +12,8 @@ const customerLinks = [
   { to: '/account/appointments', label: 'My Appointments', icon: CalendarCheck },
   { to: '/account/orders', label: 'Orders & Billing', icon: Package },
   { to: '/account/hair-system', label: 'My Hair System', icon: Scissors },
-  { to: '/account/payment-method', label: 'Card on File', icon: CreditCard },
+  // Card on file is turned off, so its page is hidden.
+  // { to: '/account/payment-method', label: 'Card on File', icon: CreditCard },
   { to: '/account/payments', label: 'Payment History', icon: Receipt },
   { to: '/account/settings', label: 'Settings', icon: Settings },
 ];
