@@ -7,6 +7,7 @@ from ..logic.auth import (
     email_taken,
     get_customer_role,
     get_user_by_email,
+    validate_change_password_data,
     validate_forgot_password_data,
     validate_login_data,
     validate_registration_data,
@@ -209,3 +210,37 @@ def get_me():
         return jsonify(error="Account is inactive"), 403
 
     return jsonify(user=user.to_dict())
+
+
+# POST /api/auth/change-password
+@auth_bp.post("/change-password")
+@jwt_required()
+def change_password():
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify(error="Request body must be JSON"), 400
+
+    fields, errors = validate_change_password_data(data)
+    if errors:
+        return jsonify(error="Validation failed", details=errors), 400
+
+    user = db.session.get(User, int(get_jwt_identity()))
+    if user is None or not user.is_active:
+        return jsonify(error="Account not found or inactive"), 403
+
+    if not check_password(fields["current_password"], user.password_hash):
+        # 400 rather than 401: the session is valid, only the typed password is wrong,
+        # so the frontend shouldn't log the user out.
+        return jsonify(
+            error="Validation failed",
+            details={"current_password": "Incorrect password"},
+        ), 400
+
+    user.password_hash = hash_password(fields["new_password"])
+    try:
+        db.session.commit()
+    except SQLAlchemyError:
+        db.session.rollback()
+        return jsonify(error="Unable to change password"), 500
+
+    return jsonify(message="Password changed")

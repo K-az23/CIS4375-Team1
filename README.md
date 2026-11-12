@@ -1,17 +1,81 @@
-# CIS4375-Team1
-# React + Vite
+# CIS4375-Team1: The Executive Parlor
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A web app for The Executive Parlor, a salon in Houston that specializes in hair replacement systems. It was built for CIS 4375 (Capstone).
 
-Currently, two official plugins are available:
+## What it does
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+**Customers** can:
+- browse services and the hair system catalog;
+- order and pay for a hair system online with Stripe;
+- reorder their saved custom system;
+- see their orders, payments and appointments.
 
-## React Compiler
+**The owner (admin)** can:
+- see bookings synced from Setmore and mark them completed or as a no-show;
+- invoice and track hair system orders from payment to pickup;
+- manage inventory;
+- view sales, customer spending and inventory reports.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Appointments are booked in **Setmore**. Services are paid in person at the salon. **Stripe** (test mode) is used only for hair system orders.
 
-## Expanding the ESLint configuration
+## Tech stack
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+| Part | Tools |
+|---|---|
+| Frontend | React, Vite |
+| Backend | Python 3.14, Flask, Flask-SQLAlchemy, Flask-JWT-Extended |
+| Database | MySQL on AWS RDS |
+| Integrations | Stripe (payments), Setmore (appointments), AWS (contact form) |
+| Quality | ruff (lint), pytest (tests), GitHub Actions (CI) |
+
+## Running it locally
+
+You need Python 3.14, Node.js and the team's `.env` values.
+
+**Backend** (first terminal):
+
+```powershell
+cd backend
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt -r requirements-dev.txt
+copy .env.example .env   # then fill in the real values
+python run.py            # http://localhost:5000
+```
+
+**Frontend** (second terminal):
+
+```powershell
+cd frontend
+npm install
+npm run dev              # http://localhost:5173
+```
+
+The frontend sends `/api` requests to the backend through the Vite proxy, so both must be running.
+
+**Stripe webhooks** (third terminal, only when testing payments):
+
+```powershell
+stripe listen --forward-to localhost:5000/api/webhooks/stripe
+```
+
+## Checks before a pull request
+
+```powershell
+cd backend
+ruff check .
+pytest -q
+
+cd ../frontend
+npm run lint
+npm run build
+```
+
+## Documentation
+
+- `backend/README.txt`: backend structure, setup, Stripe, tests and the full endpoint list
+- `frontend/API_GUIDE.txt`: how the frontend calls each endpoint, with request and response examples
+
+## Branches
+
+`feature/...` → `BackTest` / `FrontTest` → `FinalTest` → `main`. Every merge goes through a pull request using the template in `.github/pull_request_template.md`.
