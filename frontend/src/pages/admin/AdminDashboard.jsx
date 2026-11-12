@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CalendarDays, Package, PackageMinus, DollarSign, Receipt, FileCheck, Truck, FileText } from 'lucide-react';
 import DashboardHeader from '../../components/DashboardHeader';
@@ -8,7 +9,9 @@ import StatusBadge from '../../components/StatusBadge';
 import BarChart from '../../components/BarChart';
 import { useAuth } from '../../context/useAuth.js';
 import { business } from '../../data/business';
-import { todaysAppointments, hairOrders, inventoryItems, weeklySales, money } from '../../data/sampleData';
+import { api } from '../../api/client';
+import { adminOrderStatusLabel, customerName, formatTime, todayIso } from '../../api/format';
+import { money } from '../../data/sampleData';
 
 function greeting() {
   const hour = new Date().getHours();
@@ -18,29 +21,47 @@ function greeting() {
 }
 
 const apptColumns = [
-  { key: 'time', label: 'Time', nowrap: true },
-  { key: 'customer', label: 'Client', nowrap: true },
-  { key: 'services', label: 'Service', render: (r) => r.services.join(', ') },
-  { key: 'status', label: 'Status', nowrap: true, render: (r) => <StatusBadge status={r.status} /> },
+  { key: 'time', label: 'Time', nowrap: true, render: (r) => formatTime(r.appointment_time) },
+  { key: 'customer', label: 'Client', nowrap: true, render: (r) => customerName(r.customer) },
+  { key: 'services', label: 'Service', render: (r) => r.service?.service_name ?? '—' },
+  { key: 'status', label: 'Status', nowrap: true, render: (r) => <StatusBadge status={r.status === 'no_show' ? 'No-show' : r.status === 'completed' ? 'Completed' : 'Confirmed'} /> },
 ];
 
 const orderColumns = [
-  { key: 'customer', label: 'Client' },
-  { key: 'type', label: 'Type' },
-  { key: 'status', label: 'Status', nowrap: true, render: (r) => <StatusBadge status={r.status} /> },
+  { key: 'customer', label: 'Client', render: (r) => customerName(r.customer) },
+  { key: 'type', label: 'Type', render: (r) => (r.order_type === 'full' ? 'Custom' : 'Area') },
+  { key: 'status', label: 'Status', nowrap: true, render: (r) => <StatusBadge status={adminOrderStatusLabel(r.order_status)} /> },
 ];
 
 const stockColumns = [
-  { key: 'name', label: 'Product' },
-  { key: 'qty', label: 'Qty', align: 'right' },
+  { key: 'item_name', label: 'Product' },
+  { key: 'quantity_on_hand', label: 'Qty', align: 'right' },
 ];
+
+const SALES_DAYS = 7;
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const needsAction = hairOrders.filter((o) => ['Pending', 'Invoice sent'].includes(o.status));
-  const lowStock = inventoryItems.filter((i) => i.qty <= i.threshold);
-  const todaySales = weeklySales.find((d) => d.today)?.value ?? 0;
+  const [appointments, setAppointments] = useState([]);
+  const [orders, setOrders] = useState([]);
+  const [lowStock, setLowStock] = useState([]);
+  const [sales, setSales] = useState([]);
+
+  useEffect(() => {
+    const today = todayIso();
+    // Appointments come from Setmore through the backend; empty until that's available.
+    api(`/api/admin/appointments?start=${today}&end=${today}`)
+      .then((data) => setAppointments(data.appointments ?? []))
+      .catch(() => {});
+    api('/api/admin/hairpiece-orders').then((data) => setOrders(data.orders)).catch(() => {});
+    api('/api/admin/inventory-items/low-stock').then((data) => setLowStock(data.items)).catch(() => {});
+    api(`/api/admin/reports/sales?days=${SALES_DAYS}`).then((data) => setSales(data.days)).catch(() => {});
+  }, []);
+
+  // Paid orders to place with the vendor, and invoices still waiting on the client.
+  const needsAction = orders.filter((o) => ['pending', 'invoice_sent'].includes(o.order_status));
+  const todaySales = sales.find((d) => d.today)?.value ?? 0;
 
   return (
     <>
@@ -51,7 +72,7 @@ export default function AdminDashboard() {
       />
 
       <div className="stat-grid">
-        <StatCard icon={CalendarDays} label="Appointments today" value={todaysAppointments.length} linkLabel="Open calendar" to="/admin/calendar" />
+        <StatCard icon={CalendarDays} label="Appointments today" value={appointments.length} linkLabel="Open calendar" to="/admin/calendar" />
         <StatCard icon={Package} label="Hair orders to handle" value={needsAction.length} linkLabel="Hair orders" to="/admin/purchasing" />
         <StatCard icon={PackageMinus} label="Low stock items" value={lowStock.length} linkLabel="Inventory" to="/admin/inventory" />
         <StatCard icon={DollarSign} label="Sales today" value={money(todaySales)} linkLabel="Reports" to="/admin/reports" />
@@ -60,22 +81,22 @@ export default function AdminDashboard() {
       <div className="admin-grid">
         <div className="admin-col">
           <Panel title="Today's appointments" linkLabel="Check out" to="/admin/checkout">
-            <DataTable columns={apptColumns} rows={todaysAppointments} emptyMessage="No appointments today." />
+            <DataTable columns={apptColumns} rows={appointments.map((a) => ({ ...a, id: a.setmore_booking_id }))} emptyMessage="No appointments today." />
           </Panel>
         </div>
 
         <div className="admin-col">
           <Panel title="Orders to handle" linkLabel="View all" to="/admin/purchasing">
-            <DataTable columns={orderColumns} rows={needsAction} emptyMessage="Nothing to order right now." />
+            <DataTable columns={orderColumns} rows={needsAction.map((o) => ({ ...o, id: o.order_id }))} emptyMessage="Nothing to order right now." />
           </Panel>
           <Panel title="Low stock" linkLabel="View all" to="/admin/inventory">
-            <DataTable columns={stockColumns} rows={lowStock} emptyMessage="Everything is stocked." />
+            <DataTable columns={stockColumns} rows={lowStock.map((i) => ({ ...i, id: i.item_id }))} emptyMessage="Everything is stocked." />
           </Panel>
         </div>
 
         <div className="admin-col">
-          <Panel title="Sales, last 6 business days">
-            <BarChart data={weeklySales} />
+          <Panel title={`Sales, last ${SALES_DAYS} days`}>
+            <BarChart data={sales} />
           </Panel>
           <Panel title="Quick actions">
             <div className="qa-grid">

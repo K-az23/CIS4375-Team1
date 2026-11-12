@@ -107,3 +107,35 @@ export function checkoutStateForOrder(order) {
     },
   };
 }
+
+// Admin wording: "pending" means paid and waiting for Natasha to order it.
+const ADMIN_ORDER_STATUS_LABELS = {
+  invoice_sent: 'Invoice sent',
+  pending: 'Pending',
+  ordered: 'Ordered',
+  received: 'Received',
+  cancelled: 'Cancelled',
+};
+
+export function adminOrderStatusLabel(status) {
+  return ADMIN_ORDER_STATUS_LABELS[status] ?? status;
+}
+
+export function customerName(person) {
+  if (!person) return '—';
+  if (person.name) return person.name;
+  return `${person.first_name ?? ''} ${person.last_name ?? ''}`.trim() || person.email || '—';
+}
+
+// "2026-11-12" for today in the browser's time zone (the salon's, on Natasha's computer).
+export function todayIso() {
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
+export function formatTime(iso) {
+  const date = parseUtc(iso);
+  if (!date) return '—';
+  return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+}
