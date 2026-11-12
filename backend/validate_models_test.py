@@ -1,5 +1,3 @@
-from sqlalchemy.exc import SQLAlchemyError
-
 from app import create_app
 from app.extensions import db
 from app.models import (
@@ -15,6 +13,7 @@ from app.models import (
     UsageLog,
     User,
 )
+from sqlalchemy.exc import SQLAlchemyError
 
 app = create_app()
 
