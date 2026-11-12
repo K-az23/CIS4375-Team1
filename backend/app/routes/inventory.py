@@ -107,7 +107,7 @@ def update_inventory_item(item_id):
     if item is None:
         return jsonify(error="Inventory item not found"), 404
 
-    data = request.get_json(siletn=True)
+    data = request.get_json(silent=True)
 
     if not isinstance(data, dict):
         return jsonify(error="Request body must be JSON"), 400
@@ -146,7 +146,7 @@ def update_inventory_item(item_id):
 @inventory_bp.delete("/<int:item_id>")
 @role_required("admin")
 def delete_inventory_item(item_id):
-    item = db.session.det(InventoryItem, item_id)
+    item = db.session.get(InventoryItem, item_id)
 
     if item is None:
         return jsonify(error="Inventory item not found"), 404
