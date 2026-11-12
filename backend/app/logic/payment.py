@@ -1,4 +1,4 @@
-from datetime import UTC, date, datetime, time, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
 import stripe
@@ -6,6 +6,7 @@ from flask import current_app
 
 from ..extensions import db
 from ..models import HairpieceOrder, Payment, User
+from ..utils.salon_time import start_of_day_utc
 
 
 class PaymentNotAllowed(Exception):
@@ -259,11 +260,11 @@ def list_all_payments(filters):
             HairpieceOrder, Payment.order_id == HairpieceOrder.order_id
         ).where(HairpieceOrder.user_id == filters["user_id"])
     # Date filters use charged_at, so they only match payments that went through.
+    # Days are salon days, so a 9pm payment counts on the day Natasha saw it.
     if "from" in filters:
-        start = datetime.combine(filters["from"], time.min)
-        query = query.where(Payment.charged_at >= start)
+        query = query.where(Payment.charged_at >= start_of_day_utc(filters["from"]))
     if "to" in filters:
-        end = datetime.combine(filters["to"] + timedelta(days=1), time.min)
+        end = start_of_day_utc(filters["to"] + timedelta(days=1))
         query = query.where(Payment.charged_at < end)
 
     return db.session.execute(query).scalars().all()

@@ -1,30 +1,23 @@
-from datetime import UTC, datetime, time, timedelta
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from zoneinfo import ZoneInfo
 
 from sqlalchemy import func
 
 from ..extensions import db
 from ..models import HairpieceOrder, Payment, User
+from ..utils.salon_time import BUSINESS_TIMEZONE, start_of_day_utc
 
-# The salon is in Houston; "today" and daily totals follow its clock, while the
-# database stores UTC.
-BUSINESS_TIMEZONE = ZoneInfo("America/Chicago")
 MAX_REPORT_DAYS = 90
 
 # Refunded and cancelled payments are not revenue.
 REVENUE_STATUS = "succeeded"
 
 
-def _utc_naive(local_datetime):
-    return local_datetime.astimezone(UTC).replace(tzinfo=None)
-
-
 def sales_by_day(days):
     """Revenue for each of the last `days` days (salon time), oldest first."""
     today = datetime.now(BUSINESS_TIMEZONE).date()
     first_day = today - timedelta(days=days - 1)
-    start = _utc_naive(datetime.combine(first_day, time.min, BUSINESS_TIMEZONE))
+    start = start_of_day_utc(first_day)
 
     payments = db.session.execute(
         db.select(Payment.amount, Payment.charged_at).where(

@@ -207,7 +207,7 @@ POST /api/payments/create-intent          Start paying a hairpiece order (custom
 GET  /api/payments                        The customer's payments
 GET  /api/payments/<payment_id>           One of the customer's payments
 GET  /api/admin/payments                  All payments with customer (admin)
-                                          ?status= ?from= ?to=
+                                          ?status= ?from= ?to= (salon days)
 GET  /api/admin/payments/<payment_id>     One payment with customer (admin)
 POST /api/admin/payments/<payment_id>/refund  Fully refund a card payment (admin)
 POST /api/webhooks/stripe                 Called by Stripe only (signature checked)
