@@ -1,9 +1,9 @@
 from unittest import mock
 
 import stripe
-
 from app.extensions import db
 from app.models import Payment
+
 from tests.helpers import auth_header, make_order, make_payment, make_user
 
 
