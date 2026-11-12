@@ -10,15 +10,17 @@ class Appointment(db.Model):
 
     service_id = db.Column(db.Integer, db.ForeignKey("services.service_id"), nullable=False,)
 
-    user_id = db.Column(db.Integer, db.ForeignKey("users.user_id"), nullable=False,)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.user_id"), nullable=True,)
 
     appointment_time = db.Column(db.DateTime, nullable=False,)
 
     status = db.Column(db.String(30), nullable=False,)
 
-    cancellation_fee_charged = db.Column(db.Boolean, default=False)
+    # Since cancellation fee is being ommited, 
+    # will be using this column to act as a flag for successful no-show charges
+    cancellation_fee_charged = db.Column(db.Boolean, nullable=False, default=False)
 
-    long_hair_surcharge = db.Column(db.Boolean, default=False)
+    long_hair_surcharge = db.Column(db.Boolean, nullable=False, default=False)
 
     # relationship helper, not column
     # connects appointments to the associated users

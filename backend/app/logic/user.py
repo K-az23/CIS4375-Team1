@@ -1,28 +1,16 @@
 from ..extensions import db
 from ..models import User
+from ..utils.phone import normalize_phone
 
 MAX_FIRST_NAME_LENGTH = 100
 MAX_LAST_NAME_LENGTH = 100
 MAX_EMAIL_LENGTH = 150
-PHONE_DIGITS = 10
 
 
 
 # normalizes emails before being stored in db
 def _normalize_email(value):
     return value.strip().lower()
-
-
-# converts the 10-digit input to a +1 format ~ should help with SMS
-def _normalize_phone(value):
-    if not isinstance(value, str):
-        return None
-
-    value = value.strip()
-    if len(value) != PHONE_DIGITS or not value.isdigit():
-        return None
-
-    return f"+1{value}"
 
 
 #check for whether another user already has tried email
@@ -82,7 +70,7 @@ def validate_user_update_data(data, user_id):
             else:
                 cleaned["email"] = email
     if "phone" in data:
-        phone = _normalize_phone(data["phone"])
+        phone = normalize_phone(data["phone"])
 
         if phone is None:
             errors["phone"] = "Must contain 10 digits"
