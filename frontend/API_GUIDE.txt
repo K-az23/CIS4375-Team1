@@ -19,22 +19,22 @@ The frontend never talks to the database or Setmore directly.
 
 WHERE TO CONNECT
 ----------------------------------------------------------------------
-Base URL (local):    http://localhost:5000
-Base URL (deployed): TBD once the backend is on AWS
-
-Set it in frontend/.env (no /api at the end; the paths include it):
-  VITE_API_URL=http://localhost:5000
+In development the frontend calls relative paths like /api/services,
+and Vite's proxy (frontend/vite.config.js) forwards anything under
+/api to the Flask backend on http://127.0.0.1:5000. So:
+  frontend/.env:  VITE_API_URL=          (leave blank)
+Only set VITE_API_URL when the backend is hosted somewhere else.
 
 Every request goes through api() in frontend/src/api/client.js, which
-adds VITE_API_URL and the login token. Never hardcode the address, so
-switching to the deployed backend later only means changing this one
-line.
+adds the login token, turns the backend's error into one readable
+message, and logs the user out when the token expires.
 
-Example (in a file in frontend/src/services/):
-  import { api } from '../api/client';
-  export function getServices() {
-    return api('/api/services').then((data) => data.services);
-  }
+Example:
+  import { api } from '../../api/client';
+  api('/api/services').then((data) => setServices(data.services));
+
+Shared formatting (dates, statuses, phones, order specs) lives in
+frontend/src/api/format.js so every page labels things the same way.
 
 RUNNING THE BACKEND LOCALLY
 ----------------------------------------------------------------------
@@ -71,7 +71,10 @@ The short version:
   - Errors always look like:                     { "error": "message" }
     so you can show the message to the user.
   - Money and quantities are numbers (120.0), not strings.
-  - Dates are ISO 8601 in UTC: "2026-10-15T10:28:00Z"
+  - Timestamps (placed_at, charged_at, created_at) are UTC without a
+    "Z": "2026-11-12T06:52:51". format.js adds the Z before showing them.
+  - Appointment times are the salon's wall-clock time from Setmore and
+    are shown as stored (see APPOINTMENTS below).
   - Field names are snake_case: service_name, duration_minutes.
 
 STATUS CODES TO HANDLE
@@ -102,10 +105,9 @@ Admin routes check the role on the server; a customer gets 403.
 TROUBLESHOOTING
 ----------------------------------------------------------------------
 CORS error in the browser console
-  The backend only accepts requests from the address in
-  backend/.env CLIENT_URL (default http://localhost:5173, Vite's
-  default port). If your React app runs on a different port, update
-  CLIENT_URL to match and restart the backend.
+  The frontend is calling the backend directly instead of through the
+  Vite proxy. Make sure VITE_API_URL in frontend/.env is blank and
+  restart npm run dev.
 
 "Failed to fetch" / connection refused
   The backend isn't running. Start it (Terminal 1 above).
@@ -139,7 +141,8 @@ DELETE /api/admin/services/<service_id>   SVC-06  Deactivate a service (admin)
                                                   Does not delete; hides it from customers
 
 service_id is a number (e.g. /api/services/3).
-Admin login is not enforced yet on /api/admin/services routes.
+Services are synced from Setmore (see APPOINTMENTS), and each sync
+overwrites name, price, length and description, so edit them in Setmore.
 
 AUTH AND ACCOUNT (login required unless noted)
 POST /api/auth/register                   Create a customer account (public)
@@ -271,8 +274,8 @@ GET  /api/admin/reports/customer-spending
                      payment_count, last_payment_at}, ...highest first],
       "average_spend": 399.99}
      Reports "Top customers" and "Average spend per customer".
-     (lastVisit in the sample data was an appointment date; use
-     last_payment_at until appointments are connected.)
+     (For a customer's last appointment, use last_visit from
+     GET /api/admin/users.)
 GET  /api/admin/reports/inventory?days=30 days: 1 to 90, default 30
      {"days": 30, "low_stock_count": 1,
       "items": [{item_id, item_name, unit, quantity_on_hand,
@@ -291,6 +294,77 @@ Both combine with ?status=.
 CARD ON FILE: turned off. No-show fees aren't charged, so there is no
 endpoint for saving a card. Remove the Payment Method page from the
 customer menu, and the "Card" column on the admin Customers page.
+
+ADMIN: CUSTOMERS (admin)
+GET  /api/admin/users                     Customers, by last name
+     {"users": [{user_id, first_name, last_name, email, phone,
+                 no_show_count, is_member, is_active, created_at,
+                 last_visit}]}
+     last_visit is the newest completed appointment, or null.
+GET  /api/admin/users/<user_id>           One customer; 404 if not a customer
+PATCH /api/admin/users/<user_id>          Body: {"is_active": bool, "is_member": bool}
+                                          (send only what changes)
+
+ADMIN: INVENTORY (admin)
+GET  /api/admin/item-categories           {"categories": [{category_id, category_name,
+                                          description, is_active}]}
+POST /api/admin/item-categories           Body: {"category_name", "description"?}
+PATCH/DELETE /api/admin/item-categories/<category_id>   Edit / deactivate
+GET  /api/admin/inventory-items           {"items": [{item_id, category_id, sku,
+                                          item_name, brand, measurement, price,
+                                          item_type, quantity_on_hand,
+                                          reorder_threshold, unit, is_active}]}
+GET  /api/admin/inventory-items/low-stock Active items at or below reorder_threshold
+GET  /api/admin/inventory-items/<item_id> One item
+POST /api/admin/inventory-items           Required: category_id, item_name, unit
+                                          Optional: brand, measurement, price,
+                                          item_type ("per-use" or "bulk"),
+                                          quantity_on_hand, reorder_threshold, sku
+PATCH /api/admin/inventory-items/<item_id>  Send only the fields being changed
+DELETE /api/admin/inventory-items/<item_id> Deactivate
+POST /api/admin/inventory-items/<item_id>/restock  Body: {"quantity": 3}
+POST /api/admin/inventory-items/<item_id>/use      Uses one (no body); 400 if out
+     Both return {"item": {...}, "adjustment": {...}} and are logged, so
+     they show up in the inventory report.
+
+APPOINTMENTS
+Bookings are made in Setmore. The sync copies them into our database;
+the pages below read our copy.
+Appointment shape:
+  {setmore_booking_id, appointment_time, status,
+   service: {service_id, service_name, duration_minutes, price} or null,
+   customer: {user_id, first_name, last_name, email, phone}
+          or, with no account on our site,
+             {user_id: null, name, email, phone}}
+status: booked | completed | no_show | cancelled
+appointment_time: salon wall-clock time as stored from Setmore. If a
+synced booking ever shows 6 hours off from Setmore, flip
+APPOINTMENT_TIMES_ARE_UTC in frontend/src/api/format.js.
+
+GET  /api/appointments                    The customer's own appointments (logged in)
+GET  /api/appointments/<setmore_booking_id>  One of theirs; 404 otherwise
+GET  /api/admin/appointments              All, oldest first (admin)
+                                          ?start=2026-11-12&end=2026-11-18
+GET  /api/admin/appointments/<setmore_booking_id>
+POST /api/admin/appointments/<setmore_booking_id>/complete
+POST /api/admin/appointments/<setmore_booking_id>/no-show
+     Both only from "booked"; 409 if already completed or no-show.
+     No-show adds 1 to the customer's no_show_count. No fee is charged.
+POST /api/admin/appointments/sync?days=14 (admin)
+     Syncs Setmore services first, then bookings for the next `days`.
+     {"services": {...}, "appointments": {"created": [...],
+      "updated": [...], "unchanged": [...], "skipped": [...]},
+      "start_date", "end_date"}
+     Needs SETMORE_REFRESH_TOKEN in backend/.env.
+
+CONTACT (public)
+POST /api/contact                         Body: {"full_name", "email", "phone"?,
+                                          "reason", "message" (max 500)}
+     reason: general_question | hair_replacement_consultation |
+             hair_system_order | appointment_question | membership
+     200 {"message": "Contact message sent"}; 502 if it couldn't be
+     delivered. Needs CONTACT_LAMBDA_URL and CONTACT_LAMBDA_API_KEY
+     in backend/.env.
 
 CHECKOUT PAGE FLOW (Stripe)
 ----------------------------------------------------------------------
