@@ -145,9 +145,10 @@ Add a test_<resource>.py file when you build or change endpoints.
 
 STRIPE (PAYMENTS)
 ----------------------------------------------------------------------
-Scope: Stripe is used ONLY for hairpiece order payments. Card on file
-and no-show fees are out of scope (the card-on-file endpoints exist
-but are not used). Test mode only; nothing is live.
+Scope: Stripe is used ONLY for hairpiece order payments; customers pay
+when they order. No-show fees are not charged, so card on file is
+turned off (its code is commented out in logic/payment.py and
+routes/payment.py). Test mode only; nothing is live.
 
 All Stripe calls live in logic/payment.py. Card numbers never reach
 our server: the browser sends them straight to Stripe, and we only
@@ -207,7 +208,7 @@ POST /api/payments/create-intent          Start paying a hairpiece order (custom
 GET  /api/payments                        The customer's payments
 GET  /api/payments/<payment_id>           One of the customer's payments
 GET  /api/admin/payments                  All payments with customer (admin)
-                                          ?status= ?from= ?to=
+                                          ?status= ?from= ?to= (salon days)
 GET  /api/admin/payments/<payment_id>     One payment with customer (admin)
 POST /api/admin/payments/<payment_id>/refund  Fully refund a card payment (admin)
 POST /api/webhooks/stripe                 Called by Stripe only (signature checked)
@@ -223,5 +224,5 @@ GET  /api/admin/hairpiece-orders          All orders with customer (admin), ?sta
 PATCH /api/admin/hairpiece-orders/<order_id>/status  ordered / received / cancelled (admin)
 GET  /api/admin/reports/sales             Revenue per day, salon time (admin), ?days=7
 GET  /api/admin/reports/customer-spending Customers ranked by total paid (admin)
-POST /api/payments/setup-method           Save a card (NOT USED: out of scope)
-GET  /api/payments/method                 Saved card (NOT USED: out of scope)
+GET  /api/admin/reports/inventory         Stock, low stock, restocked/used (admin), ?days=30
+POST /api/auth/change-password            Change password: current_password, new_password

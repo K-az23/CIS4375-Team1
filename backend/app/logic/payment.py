@@ -1,11 +1,12 @@
-from datetime import UTC, date, datetime, time, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
 import stripe
 from flask import current_app
 
 from ..extensions import db
-from ..models import HairpieceOrder, Payment, User
+from ..models import HairpieceOrder, Payment
+from ..utils.salon_time import start_of_day_utc
 
 
 class PaymentNotAllowed(Exception):
@@ -68,46 +69,48 @@ def get_or_create_stripe_customer(user):
     return customer.id
 
 
-def start_card_setup(user):
-    """Create a SetupIntent so the browser can save a card for later charges."""
-    customer_id = get_or_create_stripe_customer(user)
-
-    try:
-        setup_intent = _client().v1.setup_intents.create(
-            params={
-                "customer": customer_id,
-                # The card is charged later without the customer present
-                # (after the appointment or for a no-show).
-                "usage": "off_session",
-                "automatic_payment_methods": {"enabled": True},
-                "metadata": {"user_id": str(user.user_id)},
-            }
-        )
-    except stripe.StripeError:
-        raise PaymentError("Unable to start saving the card") from None
-
-    return setup_intent.client_secret
-
-
-def get_saved_card(user):
-    """Return the saved card's display details, or None if there isn't one."""
-    if not user.stripe_payment_method_id:
-        return None
-
-    try:
-        payment_method = _client().v1.payment_methods.retrieve(
-            user.stripe_payment_method_id
-        )
-    except stripe.StripeError:
-        raise PaymentError("Unable to load the saved card") from None
-
-    card = payment_method.card
-    return {
-        "brand": card.brand,
-        "last4": card.last4,
-        "exp_month": card.exp_month,
-        "exp_year": card.exp_year,
-    }
+# CARD ON FILE: turned off. No-show fees aren't charged, so the app doesn't
+# save cards. Kept for reference in case the salon wants it later.
+# def start_card_setup(user):
+#     """Create a SetupIntent so the browser can save a card for later charges."""
+#     customer_id = get_or_create_stripe_customer(user)
+#
+#     try:
+#         setup_intent = _client().v1.setup_intents.create(
+#             params={
+#                 "customer": customer_id,
+#                 # The card is charged later without the customer present
+#                 # (after the appointment or for a no-show).
+#                 "usage": "off_session",
+#                 "automatic_payment_methods": {"enabled": True},
+#                 "metadata": {"user_id": str(user.user_id)},
+#             }
+#         )
+#     except stripe.StripeError:
+#         raise PaymentError("Unable to start saving the card") from None
+#
+#     return setup_intent.client_secret
+#
+#
+# def get_saved_card(user):
+#     """Return the saved card's display details, or None if there isn't one."""
+#     if not user.stripe_payment_method_id:
+#         return None
+#
+#     try:
+#         payment_method = _client().v1.payment_methods.retrieve(
+#             user.stripe_payment_method_id
+#         )
+#     except stripe.StripeError:
+#         raise PaymentError("Unable to load the saved card") from None
+#
+#     card = payment_method.card
+#     return {
+#         "brand": card.brand,
+#         "last4": card.last4,
+#         "exp_month": card.exp_month,
+#         "exp_year": card.exp_year,
+#     }
 
 
 def _to_cents(amount):
@@ -259,11 +262,11 @@ def list_all_payments(filters):
             HairpieceOrder, Payment.order_id == HairpieceOrder.order_id
         ).where(HairpieceOrder.user_id == filters["user_id"])
     # Date filters use charged_at, so they only match payments that went through.
+    # Days are salon days, so a 9pm payment counts on the day Natasha saw it.
     if "from" in filters:
-        start = datetime.combine(filters["from"], time.min)
-        query = query.where(Payment.charged_at >= start)
+        query = query.where(Payment.charged_at >= start_of_day_utc(filters["from"]))
     if "to" in filters:
-        end = datetime.combine(filters["to"] + timedelta(days=1), time.min)
+        end = start_of_day_utc(filters["to"] + timedelta(days=1))
         query = query.where(Payment.charged_at < end)
 
     return db.session.execute(query).scalars().all()
@@ -363,11 +366,12 @@ def handle_stripe_event(payload, signature):
         raise PaymentError("Invalid webhook signature") from None
 
     stripe_object = event.data.object
-    if event.type == "setup_intent.succeeded":
-        _save_card(stripe_object.customer, stripe_object.payment_method)
-    elif event.type == "payment_method.attached":
-        _save_card(stripe_object.customer, stripe_object.id)
-    elif event.type == "payment_intent.succeeded":
+    # Card on file is turned off, so saved-card events are ignored.
+    # if event.type == "setup_intent.succeeded":
+    #     _save_card(stripe_object.customer, stripe_object.payment_method)
+    # elif event.type == "payment_method.attached":
+    #     _save_card(stripe_object.customer, stripe_object.id)
+    if event.type == "payment_intent.succeeded":
         _update_payment(stripe_object.id, "succeeded")
     elif event.type == "payment_intent.payment_failed":
         _update_payment(stripe_object.id, "failed")
@@ -377,15 +381,18 @@ def handle_stripe_event(payload, signature):
         _mark_refunded(stripe_object.payment_intent)
 
 
-def _save_card(customer_id, payment_method_id):
-    user = db.session.execute(
-        db.select(User).where(User.stripe_customer_id == customer_id)
-    ).scalar_one_or_none()
-    if user is None:
-        return
-
-    user.stripe_payment_method_id = payment_method_id
-    db.session.commit()
+# CARD ON FILE: turned off. No-show fees aren't charged, so the app doesn't
+# save cards. Kept for reference in case the salon wants it later.
+# Turning it back on also needs User imported from ..models.
+# def _save_card(customer_id, payment_method_id):
+#     user = db.session.execute(
+#         db.select(User).where(User.stripe_customer_id == customer_id)
+#     ).scalar_one_or_none()
+#     if user is None:
+#         return
+#
+#     user.stripe_payment_method_id = payment_method_id
+#     db.session.commit()
 
 
 def _mark_refunded(payment_intent_id):
