@@ -381,3 +381,82 @@ def _mark_refunded(payment_intent_id):
 
     payment.status = "refunded"
     db.session.commit()
+
+
+# For returning an existing active no-show payment
+def existing_no_show_payment(setmore_booking_id):
+    return db.session.scalar(
+        db.select(Payment).where(
+            Payment.setmore_booking_id == setmore_booking_id,
+            Payment.payment_type == "no_show_fee",
+            Payment.status.in_(("pending", "succeeded")),
+        )
+    )
+
+
+# Charge the on-file card for an appointment no-show
+def charge_appointment_no_show_fee(appointment, amount):
+    user = appointment.user
+
+    if user is None:
+        return None, "no_user"
+
+    if not user.stripe_customer_id:
+        return None, "no_stripe_customer"
+
+    if not user.stripe_payment_method_id:
+        return None, "no_payment_method"
+
+    existing_payment = existing_no_show_payment(
+        appointment.setmore_booking_id
+    )
+
+    if existing_payment is not None:
+        return existing_payment, "fee_already_charged"
+
+    try:
+        intent = _client().v1.payment_intents.create(
+            params={
+                "amount": _to_cents(amount),
+                "currency": "usd",
+                "customer": user.stripe_customer_id,
+                "payment_method": user.stripe_payment_method_id,
+                "confirm": True,
+                "off_session": True,
+                "description": "Appointment no-show fee",
+                "metadata": {
+                    "setmore_booking_id": appointment.setmore_booking_id,
+                    "user_id": str(user.user_id),
+                    "payment_type": "no_show_fee",
+                },
+            },
+            options={
+                "idempotency_key": (
+                    f"no-show-fee-{appointment.setmore_booking_id}"
+                )
+            },
+        )
+    except stripe.StripeError:
+        return None, "stripe_failed"
+
+    payment = Payment(
+        setmore_booking_id=appointment.setmore_booking_id,
+        payment_method="card",
+        amount=amount,
+        payment_type="no_show_fee",
+        status=(
+            "succeeded"
+            if intent.status == "succeeded"
+            else "pending"
+        ),
+        stripe_payment_intent_id=intent.id,
+        charged_at=(
+            datetime.now(UTC).replace(tzinfo=None)
+            if intent.status == "succeeded"
+            else None
+        ),
+    )
+
+    db.session.add(payment)
+
+    return payment, None

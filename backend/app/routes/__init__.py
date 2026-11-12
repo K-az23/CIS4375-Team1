@@ -2,6 +2,7 @@ def register_blueprints(app):
     # Imported here rather than at the top of the file to avoid circular
     # imports, since route files import models that import the app's db.
     from .admin import admin_user_bp
+    from .appointment import admin_appointment_bp, appointment_bp
     from .auth import auth_bp
     from .contact import contact_bp
     from .inventory import inventory_bp
@@ -21,3 +22,5 @@ def register_blueprints(app):
     app.register_blueprint(item_category_bp, url_prefix="/api/admin/item-categories")
     app.register_blueprint(inventory_bp, url_prefix="/api/admin/inventory-items")
     app.register_blueprint(contact_bp, url_prefix="/api/contact")
+    app.register_blueprint(appointment_bp, url_prefix="/api/appointments")
+    app.register_blueprint(admin_appointment_bp, url_prefix="/api/admin/appointments")  
