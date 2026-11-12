@@ -182,9 +182,110 @@ POST /api/admin/payments/<payment_id>/refund
 Payment status values: pending, succeeded, failed, refunded, cancelled.
 charged_at is UTC; convert to local time for display.
 
-NOT USED (out of scope, do not connect):
-POST /api/payments/setup-method and GET /api/payments/method
-(card on file). Leave the Payment Method page as is.
+HAIR CATALOG (public, no login)
+GET  /api/catalog
+     {"system_types": [{"key": "area", "label": "Hair loss area system", "price": 400.0},
+                       {"key": "full", "label": "Full custom system", "price": 650.0}],
+      "options": {"hair_type": ["Wavy", "Curly", "Straight"],
+                  "base_type": ["Skin", "Lace"],
+                  "skin_thickness": ["Thin (.02mm)", "Thick (.08mm)"],
+                  "color": ["#1", "#2", "#3", "#4", "#5", "#6", "#7"],
+                  "grey_percent": [0, 10, 20, 30, 40, 50, 60, 70, 80],
+                  "density": ["Light", "Medium", "Heavy"],
+                  "dimensions": ["6 x 8", "7 x 9", "8 x 10"]},
+      "shipping_days": 10}
+     Same values as data/hairOptions.js, with snake_case keys
+     (hairType -> hair_type, greyPercent -> grey_percent, ...).
+     Use this instead of hairOptions.js so prices live in one place.
+     The full system price is a starting price; the real amount is set
+     on the invoice after the consultation.
+
+HAIRPIECE ORDERS
+Order statuses: invoice_sent (waiting to be paid) -> pending (paid; the Stripe
+webhook sets this) -> ordered -> received, or cancelled.
+UI labels: invoice_sent = "Invoice sent" (customer side: "Invoice due"),
+pending = "Pending", ordered = "Ordered", received = "Received".
+
+POST /api/hairpiece-orders                Customer orders an area system online
+     Body: {"specs": {"hair_type": "Wavy", "base_type": "Skin",
+            "skin_thickness": "Thin (.02mm)", "color": "#3", "grey_percent": 20,
+            "density": "Medium", "dimensions": "7 x 9"}}
+     Every spec must be one of the GET /api/catalog options (snake_case keys).
+     201: {"order": {order_id, order_type: "area", system_label, price: 400.0,
+           order_status: "invoice_sent", hair_type, color_code, grey_percentage,
+           density, skin_type, base_type, dimensions, placed_at, user_id}}
+     400 lists each invalid spec in "details".
+     Next: POST /api/payments/create-intent {"order_id"} to pay it.
+GET  /api/hairpiece-orders                The customer's orders, newest first
+GET  /api/hairpiece-orders/<order_id>     One order; 404 if not theirs
+POST /api/hairpiece-orders/<order_id>/cancel
+     Only while invoice_sent (unpaid); 409 after payment ("contact the salon").
+
+GET  /api/hairpiece-orders/saved-system   My Hair System page, Customer Dashboard
+     The customer's most recent PAID full system (from their consultation).
+     {"saved_system": {order_id, system_type: "full", system_label,
+       price, last_ordered, specs: {hair_type, base_type, skin_thickness,
+       color, grey_percent, density, dimensions}}}
+     or {"saved_system": null} if they don't have one yet.
+     specs use the same keys as the catalog, so SpecList can show them.
+POST /api/hairpiece-orders/reorder        "Re-order this system" button, no body
+     201: {"order": {...}} a new full order with the same specs and price,
+          status invoice_sent. Then pay it with create-intent.
+     404 no saved system; 409 an earlier re-order is still unpaid (pay or
+     cancel it first), or an option is no longer offered.
+
+POST /api/admin/hairpiece-orders          Invoice after a consultation (admin)
+     Body: {"user_id": 5, "system_type": "full" or "area",
+            "specs": {...same keys...}, "price": 725}
+     full: price required, at least 650; dimensions can be any text (custom).
+     area: price is always 400 (any price sent is ignored).
+     The customer then pays it like any order (create-intent).
+GET  /api/admin/hairpiece-orders          All orders, each with "customer"
+     {user_id, first_name, last_name, email} (admin)
+     Optional: ?status=invoice_sent|pending|ordered|received|cancelled
+PATCH /api/admin/hairpiece-orders/<order_id>/status   (admin)
+     Body: {"status": "ordered"}    Allowed: pending -> ordered -> received.
+     "cancelled" from invoice_sent or pending; 409 if the order is paid and
+     not refunded (refund first: POST /api/admin/payments/<id>/refund).
+     409 for any other jump (e.g. pending -> received).
+
+REPORTS (admin)
+Revenue counts only succeeded payments (refunded/cancelled are excluded).
+Days follow the salon's clock (Houston), not UTC.
+
+GET  /api/admin/reports/sales?days=7      days: 1 to 90, default 7
+     {"days": [{"date": "2026-11-11", "label": "Wed", "value": 1245.0,
+                "today": true}, ...oldest first],
+      "total": 4520.0}
+     Same shape as weeklySales in sampleData (label, value, today), so
+     BarChart can use data.days directly. Admin Dashboard "Sales today" is
+     the entry with today: true.
+GET  /api/admin/reports/customer-spending
+     {"customers": [{user_id, first_name, last_name, email, total_spent,
+                     payment_count, last_payment_at}, ...highest first],
+      "average_spend": 399.99}
+     Reports "Top customers" and "Average spend per customer".
+     (lastVisit in the sample data was an appointment date; use
+     last_payment_at until appointments are connected.)
+GET  /api/admin/reports/profitability     501, not built yet
+GET  /api/admin/reports/inventory         501; use
+                                          GET /api/admin/inventory-items/low-stock
+
+FILTER BY CUSTOMER (admin, Customers page detail view)
+GET  /api/admin/hairpiece-orders?user_id=5
+GET  /api/admin/payments?user_id=5
+Both combine with ?status=.
+
+CARD ON FILE (Payment Method page)
+POST /api/payments/setup-method   returns { client_secret }
+GET  /api/payments/method         returns { payment_method: { brand,
+                                  last4, exp_month, exp_year } } or null
+Show the saved card with GET /method. To add or replace a card, call
+POST /setup-method, show Stripe's PaymentElement with that
+client_secret, then call stripe.confirmSetup(). The card is saved by
+the webhook, so reload GET /method after a few seconds.
+Show this line above the form: "This card will be charged $50 if you
+miss a hair system appointment."
 
 CHECKOUT PAGE FLOW (Stripe)
 ----------------------------------------------------------------------

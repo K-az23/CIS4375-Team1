@@ -2,7 +2,9 @@ from datetime import UTC, datetime
 
 from ..extensions import db
 
-ORDER_STATUSES = ("pending", "ordered", "received", "picked_up", "cancelled")
+# invoice_sent: waiting for the customer to pay; pending: paid, not yet ordered
+# from the vendor; ordered: ordered from the vendor; received: arrived at the salon.
+ORDER_STATUSES = ("invoice_sent", "pending", "ordered", "received", "cancelled")
 
 
 class HairpieceOrder(db.Model):
@@ -16,6 +18,8 @@ class HairpieceOrder(db.Model):
 
     price = db.Column(db.Numeric(10, 2), nullable=False,)
 
+    hair_type = db.Column(db.String(20),)
+
     color_code = db.Column(db.String(10),)
 
     grey_percentage = db.Column(db.Integer,)
@@ -28,7 +32,7 @@ class HairpieceOrder(db.Model):
 
     dimensions = db.Column(db.String(100),)
 
-    order_status = db.Column(db.String(30), nullable=False, default="pending")
+    order_status = db.Column(db.String(30), nullable=False, default="invoice_sent")
 
     placed_at = db.Column(
         db.DateTime,
@@ -57,6 +61,7 @@ class HairpieceOrder(db.Model):
             "user_id": self.user_id,
             "order_type": self.order_type,
             "price": float(self.price) if self.price is not None else None,
+            "hair_type": self.hair_type,
             "color_code": self.color_code,
             "grey_percentage": self.grey_percentage,
             "density": self.density,

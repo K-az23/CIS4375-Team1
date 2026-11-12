@@ -145,9 +145,9 @@ Add a test_<resource>.py file when you build or change endpoints.
 
 STRIPE (PAYMENTS)
 ----------------------------------------------------------------------
-Scope: Stripe is used ONLY for hairpiece order payments. Card on file
-and no-show fees are out of scope (the card-on-file endpoints exist
-but are not used). Test mode only; nothing is live.
+Scope: customers pay for hairpiece orders when they order. They can
+also save a card (card on file), which is charged for a no-show on a
+hair system appointment. Test mode only; nothing is live.
 
 All Stripe calls live in logic/payment.py. Card numbers never reach
 our server: the browser sends them straight to Stripe, and we only
@@ -211,5 +211,17 @@ GET  /api/admin/payments                  All payments with customer (admin)
 GET  /api/admin/payments/<payment_id>     One payment with customer (admin)
 POST /api/admin/payments/<payment_id>/refund  Fully refund a card payment (admin)
 POST /api/webhooks/stripe                 Called by Stripe only (signature checked)
-POST /api/payments/setup-method           Save a card (NOT USED: out of scope)
-GET  /api/payments/method                 Saved card (NOT USED: out of scope)
+GET  /api/catalog                         Hair system types, prices and options (public)
+POST /api/hairpiece-orders                Customer orders an area system ($400)
+GET  /api/hairpiece-orders                The customer's orders
+GET  /api/hairpiece-orders/<order_id>     One of the customer's orders
+POST /api/hairpiece-orders/<order_id>/cancel  Customer cancels an unpaid order
+GET  /api/hairpiece-orders/saved-system   Customer's saved full system (My Hair System)
+POST /api/hairpiece-orders/reorder        Re-order the saved full system
+POST /api/admin/hairpiece-orders          Invoice after a consultation (admin)
+GET  /api/admin/hairpiece-orders          All orders with customer (admin), ?status=
+PATCH /api/admin/hairpiece-orders/<order_id>/status  ordered / received / cancelled (admin)
+GET  /api/admin/reports/sales             Revenue per day, salon time (admin), ?days=7
+GET  /api/admin/reports/customer-spending Customers ranked by total paid (admin)
+POST /api/payments/setup-method           Start saving a card, returns client_secret
+GET  /api/payments/method                 Saved card (brand, last4) or null
