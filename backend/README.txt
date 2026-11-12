@@ -223,5 +223,6 @@ GET  /api/admin/hairpiece-orders          All orders with customer (admin), ?sta
 PATCH /api/admin/hairpiece-orders/<order_id>/status  ordered / received / cancelled (admin)
 GET  /api/admin/reports/sales             Revenue per day, salon time (admin), ?days=7
 GET  /api/admin/reports/customer-spending Customers ranked by total paid (admin)
+GET  /api/admin/reports/inventory         Stock, low stock, restocked/used (admin), ?days=30
 POST /api/payments/setup-method           Start saving a card, returns client_secret
 GET  /api/payments/method                 Saved card (brand, last4) or null
