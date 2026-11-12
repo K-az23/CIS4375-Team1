@@ -284,7 +284,7 @@ def get_admin_appointment(setmore_booking_id):
 
 
 # -- User appointment logic for completed / no-show
-# for marking a local appointment as a no-show
+# for marking a local appointment as a no-show and updating customer tracking
 # the commented out lines are for charging a no-show fee
 def mark_appointment_no_show(setmore_booking_id):
     appointment = get_admin_appointment(setmore_booking_id)
@@ -320,6 +320,11 @@ def mark_appointment_no_show(setmore_booking_id):
     #     fee_charged = True
 
     appointment.status = "no_show"
+    if appointment.user is not None:
+        appointment.user.no_show_count = (
+            appointment.user.no_show_count or 0
+        ) + 1
+
     db.session.commit()
 
     return appointment, None

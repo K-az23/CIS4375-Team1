@@ -4,9 +4,9 @@ def register_blueprints(app):
     from .admin import admin_user_bp
     from .appointment import admin_appointment_bp, appointment_bp
     from .auth import auth_bp
-    from .contact import contact_bp
     from .catalog import catalog_bp
-    from .hairpiece_order import hairpiece_order_bp, admin_hairpiece_order_bp
+    from .contact import contact_bp
+    from .hairpiece_order import admin_hairpiece_order_bp, hairpiece_order_bp
     from .inventory import inventory_bp
     from .item_category import item_category_bp
     from .payment import admin_payment_bp, payment_bp, stripe_webhook_bp
