@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Check, Info } from 'lucide-react';
+import { api, ENDPOINTS } from '../../api/client';
 import { useAuth } from '../../context/useAuth.js';
 import { homeFor, isDemoMode } from '../../context/authUtils.js';
 
@@ -15,8 +16,21 @@ export default function Login() {
   const [submitting, setSubmitting] = useState(false);
   const [resetMode, setResetMode] = useState(false);
   const [resetSent, setResetSent] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
 
-  if (user) return <Navigate to={homeFor(user.role)} replace />;
+  // Where to go after logging in: back to the page that sent them here when it's
+  // one they're allowed to see, otherwise their dashboard.
+  function destination(loggedIn) {
+    const from = location.state?.from;
+    const home = homeFor(loggedIn.role);
+    // Customers sent here from Checkout go back to finish paying.
+    const backToCheckout = from === '/checkout' && loggedIn.role === 'customer';
+    return from && (from.startsWith(home) || backToCheckout) ? from : home;
+  }
+
+  // Logging in sets the user, which re-renders this page before navigate() runs,
+  // so this redirect has to use the same destination.
+  if (user) return <Navigate to={destination(user)} replace />;
 
   async function handleLogin(e) {
     e.preventDefault();
@@ -24,13 +38,22 @@ export default function Login() {
     setSubmitting(true);
     try {
       const loggedIn = await login(email, password);
-      const from = location.state?.from;
-      const home = homeFor(loggedIn.role);
-      navigate(from && from.startsWith(home) ? from : home, { replace: true });
+      navigate(destination(loggedIn), { replace: true });
     } catch (err) {
       setError(err.status === 401 ? 'That email and password don\'t match.' : err.message);
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleReset(e) {
+    e.preventDefault();
+    setError('');
+    try {
+      await api(ENDPOINTS.forgotPassword, { method: 'POST', body: { email: resetEmail } });
+      setResetSent(true);
+    } catch (err) {
+      setError(err.message);
     }
   }
 
@@ -44,10 +67,11 @@ export default function Login() {
             <p className="muted">We'll email you a link to choose a new password.</p>
           </div>
           {resetSent && <p className="notice" style={{ marginBottom: 16 }}><Check size={16} /> Check your email for the reset link.</p>}
-          <form className="form" onSubmit={(e) => { e.preventDefault(); setResetSent(true); }}>
+          {error && <p className="notice notice--warning" style={{ marginBottom: 16 }}><Info size={16} /> {error}</p>}
+          <form className="form" onSubmit={handleReset}>
             <div className="field">
               <label htmlFor="reset-email">Email address</label>
-              <input id="reset-email" type="email" required />
+              <input id="reset-email" type="email" required value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} />
             </div>
             <button type="submit" className="btn btn-dark btn-block">Send reset link</button>
           </form>

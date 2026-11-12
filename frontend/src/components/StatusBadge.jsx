@@ -14,6 +14,8 @@ const variants = {
   Low: 'warning',
   'No card': 'warning',
   'No-show': 'danger',
+  Failed: 'danger',
+  Refunded: 'info',
   Restricted: 'danger',
   Out: 'danger',
 };

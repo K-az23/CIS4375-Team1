@@ -1,9 +1,11 @@
-import { useState } from 'react';
-import { Pencil, Plus, X, Trash2, Check } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Pencil, Plus, X, Trash2, Check, Info } from 'lucide-react';
 import DashboardHeader from '../../components/DashboardHeader';
 import Panel from '../../components/Panel';
 import ServiceList from '../../components/ServiceList';
 import SpecList from '../../components/SpecList';
+import { api } from '../../api/client';
+import { groupServices } from '../../api/services';
 import { serviceCategories } from '../../data/services';
 import { hairOptions, pricing, specFields, formatSpec } from '../../data/hairOptions';
 
@@ -33,7 +35,7 @@ function SaveBar({ onSave, onCancel }) {
 }
 
 /*  Hair system options  */
-function OptionsPanel({ options, onSave }) {
+function OptionsPanel({ options, onSave, readOnly }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(options);
   const [newValues, setNewValues] = useState({});
@@ -66,7 +68,7 @@ function OptionsPanel({ options, onSave }) {
   }
 
   return (
-    <Panel title="Hair system options" action={!editing && <EditButton onClick={start} />}>
+    <Panel title="Hair system options" action={!readOnly && !editing && <EditButton onClick={start} />}>
       {!editing ? (
         <SpecList rows={specFields.map((f) => [f.label, options[f.key].map((v) => formatSpec(f.key, v)).join(', ')])} />
       ) : (
@@ -104,7 +106,7 @@ function OptionsPanel({ options, onSave }) {
 }
 
 /*  Hair system pricing  */
-function PricingPanel({ prices, onSave }) {
+function PricingPanel({ prices, onSave, readOnly }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(prices);
 
@@ -125,7 +127,7 @@ function PricingPanel({ prices, onSave }) {
   }
 
   return (
-    <Panel title="Hair system pricing" action={!editing && <EditButton onClick={() => { setDraft(prices); setEditing(true); }} />}>
+    <Panel title="Hair system pricing" action={!readOnly && !editing && <EditButton onClick={() => { setDraft(prices); setEditing(true); }} />}>
       {!editing ? (
         <SpecList rows={[
           ['Hair loss area system (online)', `$${prices.areaSystem}`],
@@ -159,7 +161,7 @@ function PricingPanel({ prices, onSave }) {
 /*  Services (one panel per category)  */
 const blankService = { name: '', price: '', duration: '', description: '' };
 
-function ServicesPanel({ category, onSave }) {
+function ServicesPanel({ category, onSave, readOnly }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(category.services);
 
@@ -183,7 +185,7 @@ function ServicesPanel({ category, onSave }) {
   return (
     <Panel
       title={category.heading}
-      action={!editing && <EditButton onClick={() => { setDraft(category.services); setEditing(true); }} />}
+      action={!readOnly && !editing && <EditButton onClick={() => { setDraft(category.services); setEditing(true); }} />}
     >
       {!editing ? (
         <ServiceList services={category.services} />
@@ -232,6 +234,23 @@ export default function Catalog() {
   const [categories, setCategories] = useState(serviceCategories);
   const [message, setMessage] = useState('');
 
+  // What customers actually see: hair options and prices are set in the backend
+  // (logic/catalog.py), and services come from Setmore. Editing here would be
+  // overwritten, so the panels are read-only; the edit code stays for later.
+  useEffect(() => {
+    api('/api/catalog')
+      .then((data) => {
+        const keys = { hair_type: 'hairType', base_type: 'baseType', skin_thickness: 'skinThickness', color: 'color', grey_percent: 'greyPercent', density: 'density', dimensions: 'dimensions' };
+        setOptions(Object.fromEntries(Object.entries(data.options).map(([k, v]) => [keys[k] ?? k, v])));
+        const price = Object.fromEntries(data.system_types.map((t) => [t.key, t.price]));
+        setPrices({ areaSystem: price.area, customFrom: price.full, shippingDays: data.shipping_days });
+      })
+      .catch(() => {});
+    api('/api/services')
+      .then((data) => setCategories(groupServices(data.services)))
+      .catch(() => {});
+  }, []);
+
   function saved(text) {
     setMessage(text);
   }
@@ -241,16 +260,18 @@ export default function Catalog() {
       <DashboardHeader eyebrow="Website content" title="Catalog" subtitle="Services and hair system options shown on the website." showIcons />
       <div className="page-stack">
         {message && <p className="notice"><Check size={16} /> {message}</p>}
+        <p className="notice notice--info"><Info size={16} /> Services and their prices come from Setmore: change them there, then use Sync from Setmore on the Calendar. Hair system options and prices are set by the developers.</p>
 
         <div className="two-col" style={{ alignItems: 'start' }}>
-          <OptionsPanel options={options} onSave={(o) => { setOptions(o); saved('Hair system options saved.'); }} />
-          <PricingPanel prices={prices} onSave={(p) => { setPrices(p); saved('Hair system pricing saved.'); }} />
+          <OptionsPanel readOnly options={options} onSave={(o) => { setOptions(o); saved('Hair system options saved.'); }} />
+          <PricingPanel readOnly prices={prices} onSave={(p) => { setPrices(p); saved('Hair system pricing saved.'); }} />
         </div>
 
         <div className="report-grid" style={{ alignItems: 'start' }}>
           {categories.map((c) => (
             <ServicesPanel
               key={c.id}
+              readOnly
               category={c}
               onSave={(services) => {
                 setCategories(categories.map((cat) => (cat.id === c.id ? { ...cat, services } : cat)));
