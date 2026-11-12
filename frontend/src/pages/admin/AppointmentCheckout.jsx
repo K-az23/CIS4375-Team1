@@ -1,52 +1,64 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Check, Minus, Plus, Trash2, Info } from 'lucide-react';
 import DashboardHeader from '../../components/DashboardHeader';
 import Panel from '../../components/Panel';
 import StatusBadge from '../../components/StatusBadge';
+import { api } from '../../api/client';
+import { appointmentStatusLabel, customerName, formatAppointment, todayIso } from '../../api/format';
 import { allServices, serviceCategories, priceToNumber } from '../../data/services';
-import { todaysAppointments, inventoryItems, usageHistory, usualUsageByService, money } from '../../data/sampleData';
+import { money } from '../../data/sampleData';
 
-const perUseItems = inventoryItems.filter((i) => i.type === 'per-use');
-const hairSystemServices = serviceCategories.find((c) => c.id === 'systems').services.map((s) => s.name);
-const NO_SHOW_FEE = 50;
+// Services are paid in person, however the salon takes payment; the app doesn't
+// charge or record them. Checkout marks the visit done and deducts the products used.
 
-function findService(name) {
-  return allServices.find((s) => s.name === name) ?? { name, price: '$0' };
-}
-
-function prefillProducts(appt) {
-  const service = appt.services[0];
-  const own = usageHistory[`${appt.customer}|${service}`];
-  if (own) return { items: own, source: `Pre-filled from ${appt.customer.split(' ')[0]}'s last ${service.toLowerCase()}` };
-  const usual = usualUsageByService[service];
-  if (usual) return { items: usual, source: `Pre-filled with usual amounts for ${service.toLowerCase()}` };
-  return { items: [], source: 'No product history for this service' };
+function findService(name, fallbackPrice) {
+  return allServices.find((s) => s.name === name)
+    ?? { name, price: fallbackPrice != null ? `$${fallbackPrice}` : '$0' };
 }
 
 function startState(appt) {
-  const prefill = prefillProducts(appt);
+  const name = appt?.service?.service_name;
   return {
-    services: appt.services.map(findService),
-    products: prefill.items.map((p) => ({ ...p })),
-    source: prefill.source,
-    payment: 'card',
+    services: name ? [findService(name, appt.service.price)] : [],
+    products: [],
   };
 }
 
 export default function AppointmentCheckout() {
-  const [selectedId, setSelectedId] = useState(todaysAppointments[0].id);
-  const [form, setForm] = useState(startState(todaysAppointments[0]));
-  const [done, setDone] = useState({}); 
+  const [appointments, setAppointments] = useState(null);
+  const [inventory, setInventory] = useState([]);
+  const [selectedId, setSelectedId] = useState(null);
+  const [form, setForm] = useState(startState(null));
   const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+  const [working, setWorking] = useState(false);
 
-  const appt = todaysAppointments.find((a) => a.id === selectedId);
+  useEffect(() => {
+    const today = todayIso();
+    api(`/api/admin/appointments?start=${today}&end=${today}`)
+      .then((data) => {
+        const list = data.appointments ?? [];
+        setAppointments(list);
+        if (list.length) {
+          setSelectedId(list[0].setmore_booking_id);
+          setForm(startState(list[0]));
+        }
+      })
+      .catch((err) => setError(err.message));
+    api('/api/admin/inventory-items')
+      .then((data) => setInventory(data.items.filter((i) => i.is_active && i.item_type !== 'bulk')))
+      .catch(() => {});
+  }, []);
+
+  const appt = (appointments ?? []).find((a) => a.setmore_booking_id === selectedId);
   const total = form.services.reduce((sum, s) => sum + priceToNumber(s.price), 0);
-  const isHairSystem = form.services.some((s) => hairSystemServices.includes(s.name));
+  const finished = appt && appt.status !== 'booked';
 
   function select(a) {
-    setSelectedId(a.id);
+    setSelectedId(a.setmore_booking_id);
     setForm(startState(a));
     setMessage('');
+    setError('');
   }
 
   function addService(name) {
@@ -71,31 +83,75 @@ export default function AppointmentCheckout() {
     setForm({ ...form, products: [...form.products, { itemId, qty: 1 }] });
   }
 
-  function complete() {
-    setDone({ ...done, [appt.id]: 'Paid' });
-    const how = form.payment === 'card' ? `charged to ${appt.card}` : 'recorded as cash';
-    setMessage(`${money(total)} ${how}. Receipt emailed and ${form.products.length} products deducted from inventory.`);
+  // Replaces the appointment in the list with the backend's updated copy.
+  function applyUpdate(updated) {
+    setAppointments((list) => list.map((a) => (a.setmore_booking_id === updated.setmore_booking_id ? updated : a)));
   }
 
-  function noShow() {
-    setDone({ ...done, [appt.id]: 'No-show' });
-    setMessage(`${money(NO_SHOW_FEE)} no-show fee charged to ${appt.card}.`);
+  async function complete() {
+    setError('');
+    setMessage('');
+    setWorking(true);
+    try {
+      const data = await api(`/api/admin/appointments/${appt.setmore_booking_id}/complete`, { method: 'POST' });
+      applyUpdate(data.appointment);
+      // Each unit used is one "use" in inventory, so it shows up in the inventory report.
+      let deducted = 0;
+      for (const p of form.products) {
+        for (let i = 0; i < p.qty; i += 1) {
+          await api(`/api/admin/inventory-items/${p.itemId}/use`, { method: 'POST' });
+          deducted += 1;
+        }
+      }
+      setMessage(`Visit completed. Collect ${money(total)} in person. ${deducted} product${deducted === 1 ? '' : 's'} deducted from inventory.`);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setWorking(false);
+    }
   }
 
-  const status = done[appt.id];
+  async function noShow() {
+    setError('');
+    setMessage('');
+    setWorking(true);
+    try {
+      const data = await api(`/api/admin/appointments/${appt.setmore_booking_id}/no-show`, { method: 'POST' });
+      applyUpdate(data.appointment ?? { ...appt, status: 'no_show' });
+      setMessage(`${customerName(appt.customer)} marked as a no-show. No fee is charged.`);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setWorking(false);
+    }
+  }
+
+  if (appointments === null || !appt) {
+    return (
+      <>
+        <DashboardHeader eyebrow="Billing" title="Checkout & billing" subtitle="Complete today's appointments and log products used." showIcons />
+        {error && <p className="notice notice--warning"><Info size={16} /> {error}</p>}
+        {!error && (
+          <Panel title="Today">
+            <p className="muted">{appointments === null ? 'Loading…' : 'No appointments today. Bookings appear here after a sync on the Calendar page.'}</p>
+          </Panel>
+        )}
+      </>
+    );
+  }
 
   return (
     <>
-      <DashboardHeader eyebrow="Billing" title="Checkout & billing" subtitle="Complete today's appointments, add services and log products used." showIcons />
+      <DashboardHeader eyebrow="Billing" title="Checkout & billing" subtitle="Complete today's appointments and log products used." showIcons />
 
       <div className="checkout-grid">
         <Panel title="Today">
           <div className="appt-list">
-            {todaysAppointments.map((a) => (
-              <button key={a.id} className={`appt-item ${a.id === selectedId ? 'is-selected' : ''}`} onClick={() => select(a)}>
-                <span className="appt-item__top"><span>{a.time}</span><StatusBadge status={done[a.id] ?? a.status} /></span>
-                <span className="appt-item__name">{a.customer}</span>
-                <span className="small muted">{a.services.join(', ')}</span>
+            {appointments.map((a) => (
+              <button key={a.setmore_booking_id} className={`appt-item ${a.setmore_booking_id === selectedId ? 'is-selected' : ''}`} onClick={() => select(a)}>
+                <span className="appt-item__top"><span>{formatAppointment(a.appointment_time, 'time')}</span><StatusBadge status={appointmentStatusLabel(a.status)} /></span>
+                <span className="appt-item__name">{customerName(a.customer)}</span>
+                <span className="small muted">{a.service?.service_name ?? '—'}</span>
               </button>
             ))}
           </div>
@@ -103,14 +159,15 @@ export default function AppointmentCheckout() {
 
         <div className="page-stack">
           {message && <p className="notice"><Check size={16} /> {message}</p>}
+          {error && <p className="notice notice--warning"><Info size={16} /> {error}</p>}
 
-          <Panel title={`${appt.customer} · ${appt.time}`}>
+          <Panel title={`${customerName(appt.customer)} · ${formatAppointment(appt.appointment_time, 'time')}`}>
             <div className="line-items">
               {form.services.map((s, i) => (
                 <div key={`${s.name}-${i}`} className="line-item">
                   <span>{s.name}</span>
                   <span>{s.price}</span>
-                  <button className="icon-btn" aria-label={`Remove ${s.name}`} onClick={() => removeService(i)} disabled={Boolean(status)}>
+                  <button className="icon-btn" aria-label={`Remove ${s.name}`} onClick={() => removeService(i)} disabled={finished}>
                     <Trash2 size={16} />
                   </button>
                 </div>
@@ -118,7 +175,7 @@ export default function AppointmentCheckout() {
             </div>
             <div className="field" style={{ marginTop: 16, maxWidth: 360 }}>
               <label htmlFor="add-service">Add a service</label>
-              <select id="add-service" value="" onChange={(e) => addService(e.target.value)} disabled={Boolean(status)}>
+              <select id="add-service" value="" onChange={(e) => addService(e.target.value)} disabled={finished}>
                 <option value="">Choose a service…</option>
                 {serviceCategories.map((c) => (
                   <optgroup key={c.id} label={c.label}>
@@ -128,23 +185,23 @@ export default function AppointmentCheckout() {
               </select>
             </div>
             <div className="total-row">
-              <span className="muted">Total</span>
+              <span className="muted">Total to collect</span>
               <strong>{money(total)}</strong>
             </div>
           </Panel>
 
           <Panel title="Products used">
-            <p className="field-hint" style={{ margin: '4px 0 8px' }}><Info size={13} style={{ verticalAlign: '-2px' }} /> {form.source}. Adjust if needed.</p>
+            <p className="field-hint" style={{ margin: '4px 0 8px' }}><Info size={13} style={{ verticalAlign: '-2px' }} /> Add what was used; it's deducted from inventory when you complete the visit.</p>
             <div className="line-items">
               {form.products.map((p) => {
-                const item = inventoryItems.find((i) => i.id === p.itemId);
+                const item = inventory.find((i) => i.item_id === p.itemId);
                 return (
                   <div key={p.itemId} className="line-item">
-                    <span>{item.name}</span>
+                    <span>{item ? [item.brand, item.item_name].filter(Boolean).join(' ') : `Item #${p.itemId}`}</span>
                     <span className="qty">
-                      <button aria-label="Less" onClick={() => changeQty(p.itemId, -1)} disabled={Boolean(status)}><Minus size={14} /></button>
+                      <button aria-label="Less" onClick={() => changeQty(p.itemId, -1)} disabled={finished}><Minus size={14} /></button>
                       <span>{p.qty}</span>
-                      <button aria-label="More" onClick={() => changeQty(p.itemId, 1)} disabled={Boolean(status)}><Plus size={14} /></button>
+                      <button aria-label="More" onClick={() => changeQty(p.itemId, 1)} disabled={finished}><Plus size={14} /></button>
                     </span>
                     <span />
                   </div>
@@ -153,31 +210,22 @@ export default function AppointmentCheckout() {
             </div>
             <div className="field" style={{ marginTop: 16, maxWidth: 360 }}>
               <label htmlFor="add-product">Add a product</label>
-              <select id="add-product" value="" onChange={(e) => addProduct(e.target.value)} disabled={Boolean(status)}>
+              <select id="add-product" value="" onChange={(e) => addProduct(e.target.value)} disabled={finished}>
                 <option value="">Choose a product…</option>
-                {perUseItems.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}
+                {inventory.map((i) => <option key={i.item_id} value={i.item_id}>{[i.brand, i.item_name].filter(Boolean).join(' ')}</option>)}
               </select>
             </div>
           </Panel>
 
-          <Panel title="Payment">
-            <div className="pay-options" style={{ marginTop: 8 }}>
-              <button className={`choice ${form.payment === 'card' ? 'is-selected' : ''}`} onClick={() => setForm({ ...form, payment: 'card' })}>
-                Card on file · {appt.card}
+          <Panel title="Finish visit">
+            <p className="field-hint" style={{ marginTop: 8 }}>Payment for services is taken in person.</p>
+            <div className="row" style={{ marginTop: 16 }}>
+              <button className="btn btn-dark" onClick={complete} disabled={finished || working}>
+                Complete visit
               </button>
-              <button className={`choice ${form.payment === 'cash' ? 'is-selected' : ''}`} onClick={() => setForm({ ...form, payment: 'cash' })}>
-                Cash
+              <button className="btn btn-outline" onClick={noShow} disabled={finished || working}>
+                Mark no-show
               </button>
-            </div>
-            <div className="row" style={{ marginTop: 20 }}>
-              <button className="btn btn-dark" onClick={complete} disabled={Boolean(status) || form.services.length === 0}>
-                Complete &amp; charge {money(total)}
-              </button>
-              {isHairSystem && (
-                <button className="btn btn-outline" onClick={noShow} disabled={Boolean(status)}>
-                  Mark no-show ({money(NO_SHOW_FEE)} fee)
-                </button>
-              )}
             </div>
           </Panel>
         </div>
