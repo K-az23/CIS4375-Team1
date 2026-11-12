@@ -1,5 +1,4 @@
 from datetime import datetime, time
-from decimal import Decimal
 
 from ..extensions import db
 from ..models.appointments import Appointment
@@ -7,20 +6,19 @@ from ..models.service import Service
 from ..models.user import User
 from ..utils.phone import normalize_phone
 
-# For no-show logic
-NO_SHOW_FEE = Decimal("50.00")
-NO_SHOW_FEE_SCOPE = "hair_replacement"
+# Optional future implementation, for no-show fee
+#NO_SHOW_FEE = Decimal("50.00")
+#NO_SHOW_FEE_SCOPE = "hair_replacement"
 # NO_SHOW_FEE_SCOPE = "all"
-
-HAIR_REPLACEMENT_SERVICES = {
-    "Hair System Maintenance",
-    "System Service - Members Only",
-    "System Styling",
-    "System Service",
-    "System Service & Color",
-    "New System Application - Members Only",
-    "Cut-In Personal System",
-}
+#HAIR_REPLACEMENT_SERVICES = {
+#    "Hair System Maintenance",
+#    "System Service - Members Only",
+#    "System Styling",
+#    "System Service",
+#    "System Service & Color",
+#    "New System Application - Members Only",
+#    "Cut-In Personal System",
+#}
 
 
 # normalize for Setmore to user matching
@@ -287,6 +285,7 @@ def get_admin_appointment(setmore_booking_id):
 
 # -- User appointment logic for completed / no-show
 # for marking a local appointment as a no-show
+# the commented out lines are for charging a no-show fee
 def mark_appointment_no_show(setmore_booking_id):
     appointment = get_admin_appointment(setmore_booking_id)
 
@@ -296,34 +295,41 @@ def mark_appointment_no_show(setmore_booking_id):
     if appointment.status != "booked":
         return appointment, "already_finalized"
 
-    fee_charged = False
-
-    if should_charge_no_show_fee(appointment):
-        # Prevent a second no-show charge for the same appointment.
-        if appointment.cancellation_fee_charged:
-            return appointment, "fee_already_charged"
-
-        from .payment import charge_appointment_no_show_fee
-
-        _payment, payment_error = charge_appointment_no_show_fee(
-            appointment,
-            NO_SHOW_FEE,
-        )
-
-        if payment_error:
-            db.session.rollback()
-            return appointment, payment_error
-
-        appointment.cancellation_fee_charged = True
-        fee_charged = True
+    # Future optional no-show fee logic.
+    # Sponsor currently does not charge a no-show fee.
+    #
+    # fee_charged = False
+    #
+    # if should_charge_no_show_fee(appointment):
+    #     # Prevent a second no-show charge for the same appointment.
+    #     if appointment.cancellation_fee_charged:
+    #         return appointment, "fee_already_charged"
+    #
+    #     from .payment import charge_appointment_no_show_fee
+    #
+    #     _payment, payment_error = charge_appointment_no_show_fee(
+    #         appointment,
+    #         NO_SHOW_FEE,
+    #     )
+    #
+    #     if payment_error:
+    #         db.session.rollback()
+    #         return appointment, payment_error
+    #
+    #     appointment.cancellation_fee_charged = True
+    #     fee_charged = True
 
     appointment.status = "no_show"
     db.session.commit()
 
-    return appointment, {
-        "fee_charged": fee_charged,
-        "fee_amount": float(NO_SHOW_FEE) if fee_charged else 0.0,
-    }
+    return appointment, None
+
+    # Future return if no-show fees are enabled:
+    #
+    # return appointment, {
+    #     "fee_charged": fee_charged,
+    #     "fee_amount": float(NO_SHOW_FEE) if fee_charged else 0.0,
+    # }
 
 # to mark a local appointment as completed
 def complete_appointment(setmore_booking_id):
@@ -343,18 +349,18 @@ def complete_appointment(setmore_booking_id):
 # No show logic - charge is set only for hair system service
 # but made easy to change to all services
 # Return whether this appointment should receive the no-show fee
-def should_charge_no_show_fee(appointment):
-    if NO_SHOW_FEE_SCOPE == "all":
-        return True
-
-    if NO_SHOW_FEE_SCOPE == "hair_replacement":
-        return (
-            appointment.service is not None
-            and appointment.service.service_name
-            in HAIR_REPLACEMENT_SERVICES
-        )
-
-    return False
+#def should_charge_no_show_fee(appointment):
+#    if NO_SHOW_FEE_SCOPE == "all":
+#        return True
+#
+#    if NO_SHOW_FEE_SCOPE == "hair_replacement":
+#        return (
+#            appointment.service is not None
+#            and appointment.service.service_name
+#            in HAIR_REPLACEMENT_SERVICES
+#        )
+#
+#    return False
 
 
 

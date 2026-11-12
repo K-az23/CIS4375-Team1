@@ -153,35 +153,51 @@ def update_admin_appointment(setmore_booking_id):
 
 
 # POST /api/admin/appointments/<setmore_booking_id>/no-show
+# Optional no-show fee handling is retained in comments for future use.
 @admin_appointment_bp.post("/<setmore_booking_id>/no-show")
 @role_required("admin")
 def admin_mark_no_show(setmore_booking_id):
-    appointment, result = mark_appointment_no_show(setmore_booking_id)
+    appointment, result = mark_appointment_no_show(
+        setmore_booking_id
+    )
 
     if result == "not_found":
         return jsonify(error="Appointment not found"), 404
 
-    if result == "fee_already_charged":
-        return jsonify(error="No-show fee has already been charged"), 409
-
     if result == "already_finalized":
-        return jsonify(error="Appointment has already been finalized"), 409
+        return jsonify(
+            error="Appointment has already been finalized"
+        ), 409
 
-    if result == "no_user":
-        return jsonify(error="Appointment is not linked to a website customer"), 409
-
-    if result == "no_stripe_customer":
-        return jsonify(error="Customer does not have a Stripe customer account"), 409
-
-    if result == "no_payment_method":
-        return jsonify(error="Customer does not have a card on file"), 409
-
-    if result == "stripe_failed":
-        return jsonify(error="Unable to process no-show fee"), 502
+    # Future optional no-show fee handling:
+    #
+    # if result == "fee_already_charged":
+    #     return jsonify(
+    #         error="No-show fee has already been charged"
+    #     ), 409
+    #
+    # if result == "no_user":
+    #     return jsonify(
+    #         error="Appointment is not linked to a website customer"
+    #     ), 409
+    #
+    # if result == "no_stripe_customer":
+    #     return jsonify(
+    #         error="Customer does not have a Stripe customer account"
+    #     ), 409
+    #
+    # if result == "no_payment_method":
+    #     return jsonify(
+    #         error="Customer does not have a card on file"
+    #     ), 409
+    #
+    # if result == "stripe_failed":
+    #     return jsonify(
+    #         error="Unable to process no-show fee"
+    #     ), 502
 
     return jsonify(
         message="Appointment marked as no-show",
-        no_show_fee=result,
         appointment=serialize_appointment(appointment),
     ), 200
 

@@ -5,7 +5,6 @@ from app.extensions import db
 from app.logic.payment import _client, get_or_create_stripe_customer
 from app.models import Appointment, Service, User
 
-
 TEST_EMAIL = "stripe-no-show-test@example.com"
 TEST_BOOKING_ID = "local-test-stripe-no-show-001"
 TEST_SERVICE_NAME = "System Service"
