@@ -10,7 +10,7 @@ import { useAuth } from '../../context/useAuth.js';
 import { business } from '../../data/business';
 import { specFields, formatSpec } from '../../data/hairOptions';
 import { api } from '../../api/client';
-import { formatDate, formatDateTime, orderStatusLabel, orderTitle, parseUtc, specsFromCatalogKeys } from '../../api/format';
+import { formatAppointment, formatDate, orderStatusLabel, orderTitle, parseAppointmentTime, specsFromCatalogKeys } from '../../api/format';
 import { money } from '../../data/sampleData';
 
 const actions = [
@@ -26,13 +26,12 @@ const orderColumns = [
   { key: 'price', label: 'Amount', align: 'right', render: (r) => money(r.price) },
 ];
 
-// Appointments come from Setmore through the backend. Until that endpoint is
-// available, the card just says there's nothing booked.
+// Appointments are synced from Setmore; the next booked one in the future.
 function nextUpcoming(appointments) {
   const now = Date.now();
   return appointments
-    .filter((a) => a.status === 'booked' && parseUtc(a.appointment_time).getTime() >= now)
-    .sort((a, b) => parseUtc(a.appointment_time) - parseUtc(b.appointment_time))[0] ?? null;
+    .filter((a) => a.status === 'booked' && parseAppointmentTime(a.appointment_time).getTime() >= now)
+    .sort((a, b) => parseAppointmentTime(a.appointment_time) - parseAppointmentTime(b.appointment_time))[0] ?? null;
 }
 
 const keySpecs = ['color', 'greyPercent', 'density', 'dimensions'];
@@ -108,7 +107,7 @@ export default function CustomerDashboard() {
           </div>
           {nextAppointment ? (
             <>
-              <div className="overview-card__value">{formatDateTime(nextAppointment.appointment_time)}</div>
+              <div className="overview-card__value">{formatAppointment(nextAppointment.appointment_time)}</div>
               <SpecList rows={[
                 ['Service', nextAppointment.service?.service_name ?? '—'],
                 ['Location', 'Reserve Salon and Spa, Rm 53'],

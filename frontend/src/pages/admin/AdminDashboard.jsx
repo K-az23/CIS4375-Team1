@@ -10,7 +10,7 @@ import BarChart from '../../components/BarChart';
 import { useAuth } from '../../context/useAuth.js';
 import { business } from '../../data/business';
 import { api } from '../../api/client';
-import { adminOrderStatusLabel, customerName, formatTime, todayIso } from '../../api/format';
+import { adminOrderStatusLabel, appointmentStatusLabel, customerName, formatAppointment, todayIso } from '../../api/format';
 import { money } from '../../data/sampleData';
 
 function greeting() {
@@ -21,10 +21,10 @@ function greeting() {
 }
 
 const apptColumns = [
-  { key: 'time', label: 'Time', nowrap: true, render: (r) => formatTime(r.appointment_time) },
+  { key: 'time', label: 'Time', nowrap: true, render: (r) => formatAppointment(r.appointment_time, 'time') },
   { key: 'customer', label: 'Client', nowrap: true, render: (r) => customerName(r.customer) },
   { key: 'services', label: 'Service', render: (r) => r.service?.service_name ?? '—' },
-  { key: 'status', label: 'Status', nowrap: true, render: (r) => <StatusBadge status={r.status === 'no_show' ? 'No-show' : r.status === 'completed' ? 'Completed' : 'Confirmed'} /> },
+  { key: 'status', label: 'Status', nowrap: true, render: (r) => <StatusBadge status={appointmentStatusLabel(r.status)} /> },
 ];
 
 const orderColumns = [

@@ -14,13 +14,6 @@ export function formatDate(iso) {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
-export function formatDateTime(iso) {
-  const date = parseUtc(iso);
-  if (!date) return '—';
-  return date.toLocaleString('en-US', {
-    weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
-  });
-}
 
 const ORDER_STATUS_LABELS = {
   invoice_sent: 'Invoice due',
@@ -134,8 +127,42 @@ export function todayIso() {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
-export function formatTime(iso) {
-  const date = parseUtc(iso);
+
+// Appointment times come from Setmore and are stored as the salon's wall-clock
+// time, so they're shown exactly as stored (no UTC conversion). If a synced
+// booking ever shows 6 hours off from Setmore, flip this to true.
+const APPOINTMENT_TIMES_ARE_UTC = false;
+
+export function parseAppointmentTime(iso) {
+  if (!iso) return null;
+  if (APPOINTMENT_TIMES_ARE_UTC) return parseUtc(iso);
+  // Drop any offset so the browser keeps the time as written.
+  return new Date(iso.slice(0, 19));
+}
+
+export function formatAppointment(iso, style = 'datetime') {
+  const date = parseAppointmentTime(iso);
   if (!date) return '—';
-  return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  if (style === 'time') return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  if (style === 'date') return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+  return date.toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
+const APPOINTMENT_STATUS_LABELS = {
+  booked: 'Confirmed',
+  completed: 'Completed',
+  no_show: 'No-show',
+  cancelled: 'Cancelled',
+};
+
+export function appointmentStatusLabel(status) {
+  return APPOINTMENT_STATUS_LABELS[status] ?? status;
+}
+
+// "2026-11-18": a date `days` from today, for appointment date filters.
+export function isoDaysFromToday(days) {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
