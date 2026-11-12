@@ -267,9 +267,15 @@ GET  /api/admin/reports/customer-spending
      Reports "Top customers" and "Average spend per customer".
      (lastVisit in the sample data was an appointment date; use
      last_payment_at until appointments are connected.)
-GET  /api/admin/reports/profitability     501, not built yet
-GET  /api/admin/reports/inventory         501; use
-                                          GET /api/admin/inventory-items/low-stock
+GET  /api/admin/reports/inventory?days=30 days: 1 to 90, default 30
+     {"days": 30, "low_stock_count": 1,
+      "items": [{item_id, item_name, unit, quantity_on_hand,
+                 reorder_threshold, low_stock, restocked, used},
+                ...low stock first, then by name]}
+     restocked and used count the last `days` days. Inactive items are
+     left out. Reports "Inventory" section.
+There is no profitability report (costs aren't tracked); remove it
+from the Reports page.
 
 FILTER BY CUSTOMER (admin, Customers page detail view)
 GET  /api/admin/hairpiece-orders?user_id=5
