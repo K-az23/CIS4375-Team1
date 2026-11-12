@@ -288,16 +288,9 @@ GET  /api/admin/hairpiece-orders?user_id=5
 GET  /api/admin/payments?user_id=5
 Both combine with ?status=.
 
-CARD ON FILE (Payment Method page)
-POST /api/payments/setup-method   returns { client_secret }
-GET  /api/payments/method         returns { payment_method: { brand,
-                                  last4, exp_month, exp_year } } or null
-Show the saved card with GET /method. To add or replace a card, call
-POST /setup-method, show Stripe's PaymentElement with that
-client_secret, then call stripe.confirmSetup(). The card is saved by
-the webhook, so reload GET /method after a few seconds.
-Show this line above the form: "This card will be charged $50 if you
-miss a hair system appointment."
+CARD ON FILE: turned off. No-show fees aren't charged, so there is no
+endpoint for saving a card. Remove the Payment Method page from the
+customer menu, and the "Card" column on the admin Customers page.
 
 CHECKOUT PAGE FLOW (Stripe)
 ----------------------------------------------------------------------
