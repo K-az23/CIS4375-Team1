@@ -2,8 +2,10 @@ def register_blueprints(app):
     # Imported here rather than at the top of the file to avoid circular
     # imports, since route files import models that import the app's db.
     from .admin import admin_user_bp
+    from .appointment import admin_appointment_bp, appointment_bp
     from .auth import auth_bp
     from .catalog import catalog_bp
+    from .contact import contact_bp
     from .hairpiece_order import admin_hairpiece_order_bp, hairpiece_order_bp
     from .inventory import inventory_bp
     from .item_category import item_category_bp
@@ -22,9 +24,12 @@ def register_blueprints(app):
     app.register_blueprint(stripe_webhook_bp, url_prefix="/api/webhooks")
     app.register_blueprint(item_category_bp, url_prefix="/api/admin/item-categories")
     app.register_blueprint(inventory_bp, url_prefix="/api/admin/inventory-items")
+    app.register_blueprint(contact_bp, url_prefix="/api/contact")
+    app.register_blueprint(appointment_bp, url_prefix="/api/appointments")
+    app.register_blueprint(admin_appointment_bp, url_prefix="/api/admin/appointments")  
     app.register_blueprint(catalog_bp, url_prefix="/api/catalog")
     app.register_blueprint(hairpiece_order_bp, url_prefix="/api/hairpiece-orders")
     app.register_blueprint(
         admin_hairpiece_order_bp, url_prefix="/api/admin/hairpiece-orders"
-    )
+        )
     app.register_blueprint(report_bp, url_prefix="/api/admin/reports")
