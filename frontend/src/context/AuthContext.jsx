@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api, ENDPOINTS } from '../api/client';
+import { api, ENDPOINTS, SESSION_EXPIRED_EVENT } from '../api/client';
 import { AuthContext } from './authContext.js';
 import { isDemoMode } from './authUtils.js';
 
@@ -29,31 +29,51 @@ export function AuthProvider({ children }) {
     const saved = sessionStorage.getItem('demoRole');
     return saved ? demoUsers[saved] : null;
   });
-  const [checking, setChecking] = useState(!isDemoMode);
+  // Only check the saved token on load; without one there's nothing to check.
+  const [checking, setChecking] = useState(() => !isDemoMode && Boolean(localStorage.getItem('token')));
 
   useEffect(() => {
-    if (isDemoMode) return;
+    if (!checking) return;
     api(ENDPOINTS.me)
       .then((data) => setUser(toUser(data)))
-      .catch(() => setUser(null))
+      .catch(() => {
+        // The saved token is expired or invalid, so drop it.
+        localStorage.removeItem('token');
+        setUser(null);
+      })
       .finally(() => setChecking(false));
+  }, [checking]);
+
+  // The API client fires this when a request comes back 401 (expired token).
+  useEffect(() => {
+    if (isDemoMode) return undefined;
+    const onExpired = () => setUser(null);
+    window.addEventListener(SESSION_EXPIRED_EVENT, onExpired);
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, onExpired);
   }, []);
 
-  function saveSession(data) {
-    if (data.token) localStorage.setItem('token', data.token);
+  async function login(email, password) {
+    const data = await api(ENDPOINTS.login, { method: 'POST', body: { email, password } });
+    localStorage.setItem('token', data.access_token);
     const loggedIn = toUser(data);
     setUser(loggedIn);
     return loggedIn;
   }
 
-  async function login(email, password) {
-    const data = await api(ENDPOINTS.login, { method: 'POST', body: { email, password } });
-    return saveSession(data);
-  }
-
-  async function register(fields) {
-    const data = await api(ENDPOINTS.register, { method: 'POST', body: fields });
-    return saveSession(data);
+  // Register doesn't return a token, so log in right after creating the account.
+  async function register({ firstName, lastName, email, phone, password }) {
+    await api(ENDPOINTS.register, {
+      method: 'POST',
+      body: {
+        first_name: firstName,
+        last_name: lastName,
+        email,
+        // The backend accepts exactly 10 digits, so drop spaces, dashes and parentheses.
+        phone: phone.replace(/\D/g, ''),
+        password,
+      },
+    });
+    return login(email, password);
   }
 
   function loginAsDemo(role) {
