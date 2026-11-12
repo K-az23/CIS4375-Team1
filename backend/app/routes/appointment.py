@@ -47,23 +47,6 @@ def get_appointments():
         ]
     ), 200
 
-# GET /api/appointments/availability
-# May not be used in flow - will be temporarily kept incase
-@appointment_bp.route("/availability", methods=["GET"])
-def get_appointment_availability():
-    return jsonify({
-        "success": False,
-        "message": "Appointment availability integration not implemented yet."
-    }), 501
-
-# POST /api/appointments
-# May not be used in flow - will be temporarily kept incase
-@appointment_bp.route("", methods=["POST"])
-def create_appointment():
-    return jsonify({
-        "success": False,
-        "message": "Create appointment endpoint not implemented yet."
-    }), 501
 
 # GET /api/appointments/<setmore_booking_id>
 @appointment_bp.get("/<setmore_booking_id>")
@@ -82,29 +65,9 @@ def get_appointment(setmore_booking_id):
         appointment=serialize_appointment(appointment)
     ), 200
 
-# PATCH /api/appointments/<setmore_booking_id>
-# May not be used in flow - will be temporarily kept incase
-@appointment_bp.route("/<string:setmore_booking_id>", methods=["PATCH"])
-def update_appointment(setmore_booking_id):
-    return jsonify({
-        "success": False,
-        "message": "Update appointment endpoint not implemented yet."
-    }), 501
-
-# DELETE /api/appointments/<setmore_booking_id>
-# May not be used in flow - will be temporarily kept incase
-@appointment_bp.route("/<string:setmore_booking_id>", methods=["DELETE"])
-def cancel_appointment(setmore_booking_id):
-    return jsonify({
-        "success": False,
-        "message": "Cancel appointment endpoint not implemented yet."
-    }), 501
-
-
 
 # Admin Appointments Management
 # ---------------
-
 
 # GET /api/admin/appointments
 @admin_appointment_bp.get("")
@@ -145,15 +108,6 @@ def admin_get_appointment(setmore_booking_id):
         return jsonify(error="Appointment not found"), 404
 
     return jsonify(appointment=serialize_appointment(appointment)), 200
-
-
-# PATCH /api/admin/appointments/<setmore_booking_id>
-@admin_appointment_bp.route("/<string:setmore_booking_id>", methods=["PATCH"])
-def update_admin_appointment(setmore_booking_id):
-    return jsonify({
-        "success": False,
-        "message": "Admin appointment update endpoint not implemented yet."
-    }), 501
 
 
 # POST /api/admin/appointments/<setmore_booking_id>/no-show
