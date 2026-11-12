@@ -11,11 +11,12 @@ from ..logic.appointment import (
     get_user_appointment,
     get_user_appointments,
     mark_appointment_no_show,
+    parse_setmore_time,
     serialize_appointment,
     sync_setmore_appointments,
 )
 from ..logic.service import sync_services_from_setmore
-from ..logic.setmore import list_appointments
+from ..logic.setmore import SetmoreError, list_appointments
 from ..utils.auth import role_required
 
 appointment_bp = Blueprint(
@@ -202,35 +203,38 @@ def admin_sync_appointments():
     if days < 1:
         return jsonify(error="days must be at least 1"), 400
 
-    service_summary = sync_services_from_setmore(
-        dry_run=False
-    )
-
     salon_timezone = ZoneInfo("America/Chicago")
     start_date = datetime.now(salon_timezone).date()
     end_date = start_date + timedelta(days=days)
 
-    setmore_response = list_appointments(
-        start_date=start_date.isoformat(),
-        end_date=end_date.isoformat(),
-    )
+    try:
+        service_summary = sync_services_from_setmore(dry_run=False)
+        bookings = list_appointments(start_date=start_date, end_date=end_date)
+    except SetmoreError as error:
+        # A missing token or Setmore outage shouldn't look like a crash.
+        return jsonify(error=f"Couldn't sync with Setmore: {error}"), 502
 
-    bookings = setmore_response.get(
-        "data",
-        {}
-    ).get(
-        "appointments",
-        []
-    )
+    # Keep only bookings inside the window, in case Setmore ignores the range.
+    def in_window(booking):
+        try:
+            start = parse_setmore_time(booking.get("start_time"))
+        except ValueError:
+            # Bad times are reported as skipped by the sync itself.
+            return True
+        return start is None or start_date <= start.date() <= end_date
+
+    in_range = [booking for booking in bookings if in_window(booking)]
+    outside_range = len(bookings) - len(in_range)
 
     appointment_summary = sync_setmore_appointments(
-        bookings,
+        in_range,
         dry_run=False,
     )
 
     return jsonify(
         services=service_summary,
         appointments=appointment_summary,
+        ignored_outside_range=outside_range,
         start_date=start_date.isoformat(),
         end_date=end_date.isoformat(),
     ), 200
