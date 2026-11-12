@@ -81,7 +81,7 @@ something pending (include what it's waiting on).
 
 ADDING AN ENDPOINT
 ----------------------------------------------------------------------
-1. Branch from main:  feature/<ID>-<short-name>
+1. Branch from BackTest:  feature/<ID>-<short-name>
    (ID from CIS4375_API_Workbook.xlsx, e.g. feature/SVC-02-get-service)
 2. Add or update the model in models/<resource>.py, and export it
    from models/__init__.py.
@@ -155,16 +155,22 @@ our server: the browser sends them straight to Stripe, and we only
 store Stripe IDs (cus_..., pi_...).
 
 Setup (once):
-1. Use the Capstone sandbox keys (Stripe dashboard > Developers >
-   API keys). Put the secret key (sk_test_...) in backend/.env as
-   STRIPE_SECRET_KEY. Ask Matias privately; never in the group chat.
+1. Use the Executive Parlor sandbox keys (Stripe dashboard >
+   Developers > API keys). Put the secret key (sk_test_...) in
+   backend/.env as STRIPE_SECRET_KEY, and the publishable key
+   (pk_test_...) in frontend/.env as VITE_STRIPE_PUBLISHABLE_KEY.
+   Both must come from the same sandbox. Ask Matias privately; never
+   in the group chat.
 2. Install the Stripe CLI:  npm install -g @stripe/cli
-3. stripe login   (pick "Capstone sandbox")
+3. stripe login   (pick the Executive Parlor sandbox; if it says you're
+   already logged in to another one, run stripe logout first)
 
 Every time you test payments, run a third terminal:
   stripe listen --all-snapshot --forward-to localhost:5000/api/webhooks/stripe
 Copy the whsec_... it prints into backend/.env as STRIPE_WEBHOOK_SECRET
-(it stays the same on your computer) and restart the server.
+and restart the server. It stays the same on your computer for that
+sandbox. Use this one, not a webhook secret from the dashboard; a
+[400] in the listener means the two don't match.
 Use --all-snapshot; with --events the CLI does not forward every event.
 
 How an order payment works:
@@ -226,3 +232,29 @@ GET  /api/admin/reports/sales             Revenue per day, salon time (admin), ?
 GET  /api/admin/reports/customer-spending Customers ranked by total paid (admin)
 GET  /api/admin/reports/inventory         Stock, low stock, restocked/used (admin), ?days=30
 POST /api/auth/change-password            Change password: current_password, new_password
+POST /api/auth/register                   Create a customer account (public)
+POST /api/auth/login                      Log in (public); returns access_token
+POST /api/auth/logout                     Log out
+GET  /api/auth/me                         The logged-in user
+POST /api/auth/forgot-password            Start a reset (token is only printed in debug for now)
+POST /api/auth/reset-password             Finish a reset with the token
+GET  /api/users/me                        Profile
+PATCH /api/users/me                       Edit profile
+GET  /api/admin/users                     Customers with no_show_count, last_visit (admin)
+GET  /api/admin/users/<user_id>           One customer (admin)
+PATCH /api/admin/users/<user_id>          is_active, is_member (admin)
+GET/POST /api/admin/item-categories       List / create categories (admin)
+PATCH/DELETE /api/admin/item-categories/<category_id>  Edit / deactivate (admin)
+GET/POST /api/admin/inventory-items       List / create items (admin)
+GET  /api/admin/inventory-items/low-stock Items at or below reorder level (admin)
+GET/PATCH/DELETE /api/admin/inventory-items/<item_id>  One / edit / deactivate (admin)
+POST /api/admin/inventory-items/<item_id>/restock  Add received quantity (admin)
+POST /api/admin/inventory-items/<item_id>/use      Use one (admin)
+GET  /api/appointments                    The customer's appointments
+GET  /api/appointments/<setmore_booking_id>  One of the customer's appointments
+GET  /api/admin/appointments              All appointments, ?start= ?end= (admin)
+GET  /api/admin/appointments/<setmore_booking_id>  One appointment (admin)
+POST /api/admin/appointments/<setmore_booking_id>/complete  Mark completed (admin)
+POST /api/admin/appointments/<setmore_booking_id>/no-show   Mark no-show, no fee (admin)
+POST /api/admin/appointments/sync         Sync Setmore services + bookings, ?days=14 (admin)
+POST /api/contact                         Contact form, sent through the AWS Lambda (public)

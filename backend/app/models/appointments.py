@@ -6,6 +6,12 @@ APPOINTMENT_STATUSES = ("booked", "completed", "cancelled", "no_show")
 class Appointment(db.Model):
     __tablename__ = "appointments"
 
+    customer_name = db.Column(db.String(200), nullable=True)
+
+    customer_email = db.Column(db.String(255), nullable=True)
+    
+    customer_phone = db.Column(db.String(25), nullable=True)
+
     setmore_booking_id = db.Column(db.String(100), primary_key=True,)
 
     service_id = db.Column(db.Integer, db.ForeignKey("services.service_id"), nullable=False,)

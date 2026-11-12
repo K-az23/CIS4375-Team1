@@ -30,7 +30,7 @@ Appointments are booked in **Setmore**. Services are paid in person at the salon
 
 ## Running it locally
 
-You need Python 3.14, Node.js and the team's `.env` values.
+You need Python 3.14, Node.js and the team's `.env` values: `backend/.env` (database, JWT secrets, Stripe secret key and webhook secret, Setmore token, contact Lambda) and `frontend/.env` (Stripe publishable key; leave `VITE_API_URL` blank). Ask Matias privately.
 
 **Backend** (first terminal):
 
@@ -56,7 +56,7 @@ The frontend sends `/api` requests to the backend through the Vite proxy, so bot
 **Stripe webhooks** (third terminal, only when testing payments):
 
 ```powershell
-stripe listen --forward-to localhost:5000/api/webhooks/stripe
+stripe listen --all-snapshot --forward-to localhost:5000/api/webhooks/stripe
 ```
 
 ## Checks before a pull request

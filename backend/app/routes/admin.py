@@ -2,8 +2,8 @@ from flask import Blueprint, jsonify, request
 from sqlalchemy.exc import SQLAlchemyError
 
 from ..extensions import db
-from ..logic.user import validate_admin_user_update_data
-from ..models import Role, User
+from ..logic.user import get_admin_customers, validate_admin_user_update_data
+from ..models import User
 from ..utils.auth import role_required
 
 admin_user_bp = Blueprint(
@@ -24,19 +24,22 @@ admin_user_bp = Blueprint(
 @admin_user_bp.get("")
 @role_required("admin")
 def list_users():
-    query = (
-        db.select(User)
-        .join(User.role)
-        .where(Role.name == "customer")
-        .order_by(
-            User.last_name,
-            User.first_name,
+    customers = get_admin_customers()
+
+    users = []
+
+    for user, last_visit in customers:
+        user_data = user.to_admin_dict()
+
+        user_data["last_visit"] = (
+            last_visit.isoformat()
+            if last_visit is not None
+            else None
         )
-    )
 
-    users = db.session.execute(query).scalars().all()
+        users.append(user_data)
 
-    return jsonify(users=[user.to_admin_dict() for user in users])
+    return jsonify(users=users), 200
 
 
 # GET /api/admin/users/<user_id>
@@ -87,35 +90,3 @@ def update_user(user_id):
         return jsonify(error="Unable to update account"), 500
 
     return jsonify(user=user.to_admin_dict())
-
-# GET /api/admin/users/<user_id>/appointments
-@admin_user_bp.route("/<int:user_id>/appointments", methods=["GET"])
-def get_admin_user_appointments(user_id):
-    return jsonify({
-        "success": False,
-        "message": "Get user appointments for admin endpoint not implemented yet."
-    }), 501
-
-# GET /api/admin/users/<user_id>/hairpiece-orders
-@admin_user_bp.route("/<int:user_id>/hairpiece-orders", methods=["GET"])
-def get_admin_user_hairpiece_orders(user_id):
-    return jsonify({
-        "success": False,
-        "message": "Get user hairpiece orders for admin endpoint not implemented yet."
-    }), 501
-
-# GET /api/admin/users/<user_id>/payments
-@admin_user_bp.route("/<int:user_id>/payments", methods=["GET"])
-def get_admin_user_payments(user_id):
-    return jsonify({
-        "success": False,
-        "message": "Get user payments for admin endpoint not implemented yet."
-    }), 501
-
-# GET /api/admin/users/<user_id>/timeline
-@admin_user_bp.route("/<int:user_id>/timeline", methods=["GET"])
-def get_admin_user_timeline(user_id):
-    return jsonify({
-        "success": False,
-        "message": "Get user timeline endpoint not implemented yet."
-    }), 501
