@@ -18,7 +18,19 @@ export default function Login() {
   const [resetSent, setResetSent] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
 
-  if (user) return <Navigate to={homeFor(user.role)} replace />;
+  // Where to go after logging in: back to the page that sent them here when it's
+  // one they're allowed to see, otherwise their dashboard.
+  function destination(loggedIn) {
+    const from = location.state?.from;
+    const home = homeFor(loggedIn.role);
+    // Customers sent here from Checkout go back to finish paying.
+    const backToCheckout = from === '/checkout' && loggedIn.role === 'customer';
+    return from && (from.startsWith(home) || backToCheckout) ? from : home;
+  }
+
+  // Logging in sets the user, which re-renders this page before navigate() runs,
+  // so this redirect has to use the same destination.
+  if (user) return <Navigate to={destination(user)} replace />;
 
   async function handleLogin(e) {
     e.preventDefault();
@@ -26,9 +38,7 @@ export default function Login() {
     setSubmitting(true);
     try {
       const loggedIn = await login(email, password);
-      const from = location.state?.from;
-      const home = homeFor(loggedIn.role);
-      navigate(from && from.startsWith(home) ? from : home, { replace: true });
+      navigate(destination(loggedIn), { replace: true });
     } catch (err) {
       setError(err.status === 401 ? 'That email and password don\'t match.' : err.message);
     } finally {
