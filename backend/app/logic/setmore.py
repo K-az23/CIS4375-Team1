@@ -97,3 +97,17 @@ def list_services():
 
 def list_staff():
     return _request("GET", "/bookingapi/staffs")
+
+# get appointments from Setmore by date range
+def list_appointments(start_date, end_date, customer_details=True, **params):
+    query = {
+        "startDate": start_date,
+        "endDate": end_date,
+        "customerDetails": str(customer_details).lower(),
+        **params,
+    }
+    return _request("GET", "/bookingapi/appointments", params=query)
+
+def list_service_categories():
+    """Fetch Setmore service categories."""
+    return _request("GET", "/bookingapi/services/categories")
