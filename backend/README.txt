@@ -145,9 +145,10 @@ Add a test_<resource>.py file when you build or change endpoints.
 
 STRIPE (PAYMENTS)
 ----------------------------------------------------------------------
-Scope: customers pay for hairpiece orders when they order. They can
-also save a card (card on file), which is charged for a no-show on a
-hair system appointment. Test mode only; nothing is live.
+Scope: Stripe is used ONLY for hairpiece order payments; customers pay
+when they order. No-show fees are not charged, so card on file is
+turned off (its code is commented out in logic/payment.py and
+routes/payment.py). Test mode only; nothing is live.
 
 All Stripe calls live in logic/payment.py. Card numbers never reach
 our server: the browser sends them straight to Stripe, and we only
@@ -225,5 +226,3 @@ GET  /api/admin/reports/sales             Revenue per day, salon time (admin), ?
 GET  /api/admin/reports/customer-spending Customers ranked by total paid (admin)
 GET  /api/admin/reports/inventory         Stock, low stock, restocked/used (admin), ?days=30
 POST /api/auth/change-password            Change password: current_password, new_password
-POST /api/payments/setup-method           Start saving a card, returns client_secret
-GET  /api/payments/method                 Saved card (brand, last4) or null
