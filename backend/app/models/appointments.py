@@ -16,6 +16,8 @@ class Appointment(db.Model):
 
     status = db.Column(db.String(30), nullable=False,)
 
+    # Since cancellation fee is being ommited, 
+    # will be using this column to act as a flag for successful no-show charges
     cancellation_fee_charged = db.Column(db.Boolean, nullable=False, default=False)
 
     long_hair_surcharge = db.Column(db.Boolean, nullable=False, default=False)
