@@ -150,6 +150,12 @@ POST /api/auth/logout                     Log out; then delete the saved token
 GET  /api/auth/me                         The logged-in user
 POST /api/auth/forgot-password            Start a password reset (public)
 POST /api/auth/reset-password             Finish a password reset (public): token, password
+POST /api/auth/change-password            Change password (Settings page)
+                                          Body: {"current_password", "new_password"}
+                                          200: {"message": "Password changed"}
+                                          400 details.current_password: wrong password
+                                          400 details.new_password: under 8 characters
+                                          or same as the current one
 GET  /api/users/me                        Profile
 PATCH /api/users/me                       Edit profile: first_name, last_name, email, phone
 

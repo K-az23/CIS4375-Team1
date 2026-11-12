@@ -217,3 +217,28 @@ def validate_reset_password_data(data):
         cleaned["password"] = password
 
     return cleaned, errors
+
+# validates a logged-in user's request to change their password
+def validate_change_password_data(data):
+    cleaned = {}
+    errors = {}
+
+    current_password = data.get("current_password")
+    if not isinstance(current_password, str) or not current_password:
+        errors["current_password"] = "Required"
+    else:
+        cleaned["current_password"] = current_password
+
+    new_password = data.get("new_password")
+    if not isinstance(new_password, str) or not new_password:
+        errors["new_password"] = "Required"
+    elif len(new_password) < MIN_PASSWORD_LENGTH:
+        errors["new_password"] = f"Must be at least {MIN_PASSWORD_LENGTH} characters"
+    elif len(new_password.encode("utf-8")) > MAX_PASSWORD_LENGTH:
+        errors["new_password"] = f"Must be {MAX_PASSWORD_LENGTH} bytes or fewer"
+    elif new_password == current_password:
+        errors["new_password"] = "Must be different from the current password"
+    else:
+        cleaned["new_password"] = new_password
+
+    return cleaned, errors
