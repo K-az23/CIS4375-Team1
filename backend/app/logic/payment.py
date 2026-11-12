@@ -5,7 +5,7 @@ import stripe
 from flask import current_app
 
 from ..extensions import db
-from ..models import HairpieceOrder, Payment, User
+from ..models import HairpieceOrder, Payment
 
 
 class PaymentNotAllowed(Exception):
@@ -66,48 +66,6 @@ def get_or_create_stripe_customer(user):
     user.stripe_customer_id = customer.id
     db.session.commit()
     return customer.id
-
-
-def start_card_setup(user):
-    """Create a SetupIntent so the browser can save a card for later charges."""
-    customer_id = get_or_create_stripe_customer(user)
-
-    try:
-        setup_intent = _client().v1.setup_intents.create(
-            params={
-                "customer": customer_id,
-                # The card is charged later without the customer present
-                # (after the appointment or for a no-show).
-                "usage": "off_session",
-                "automatic_payment_methods": {"enabled": True},
-                "metadata": {"user_id": str(user.user_id)},
-            }
-        )
-    except stripe.StripeError:
-        raise PaymentError("Unable to start saving the card") from None
-
-    return setup_intent.client_secret
-
-
-def get_saved_card(user):
-    """Return the saved card's display details, or None if there isn't one."""
-    if not user.stripe_payment_method_id:
-        return None
-
-    try:
-        payment_method = _client().v1.payment_methods.retrieve(
-            user.stripe_payment_method_id
-        )
-    except stripe.StripeError:
-        raise PaymentError("Unable to load the saved card") from None
-
-    card = payment_method.card
-    return {
-        "brand": card.brand,
-        "last4": card.last4,
-        "exp_month": card.exp_month,
-        "exp_year": card.exp_year,
-    }
 
 
 def _to_cents(amount):
@@ -363,11 +321,7 @@ def handle_stripe_event(payload, signature):
         raise PaymentError("Invalid webhook signature") from None
 
     stripe_object = event.data.object
-    if event.type == "setup_intent.succeeded":
-        _save_card(stripe_object.customer, stripe_object.payment_method)
-    elif event.type == "payment_method.attached":
-        _save_card(stripe_object.customer, stripe_object.id)
-    elif event.type == "payment_intent.succeeded":
+    if event.type == "payment_intent.succeeded":
         _update_payment(stripe_object.id, "succeeded")
     elif event.type == "payment_intent.payment_failed":
         _update_payment(stripe_object.id, "failed")
@@ -375,17 +329,6 @@ def handle_stripe_event(payload, signature):
         _update_payment(stripe_object.id, "cancelled")
     elif event.type == "charge.refunded" and stripe_object.refunded:
         _mark_refunded(stripe_object.payment_intent)
-
-
-def _save_card(customer_id, payment_method_id):
-    user = db.session.execute(
-        db.select(User).where(User.stripe_customer_id == customer_id)
-    ).scalar_one_or_none()
-    if user is None:
-        return
-
-    user.stripe_payment_method_id = payment_method_id
-    db.session.commit()
 
 
 def _mark_refunded(payment_intent_id):
