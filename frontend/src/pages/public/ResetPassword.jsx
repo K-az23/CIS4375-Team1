@@ -1,5 +1,10 @@
 import { useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import {
+  Link,
+  useNavigate,
+  useSearchParams,
+} from 'react-router-dom';
+import { Info } from 'lucide-react';
 
 import { api, ENDPOINTS } from '../../api/client';
 
@@ -11,29 +16,34 @@ export default function ResetPassword() {
 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  async function handleSubmit(event) {
-    event.preventDefault();
+  async function handleSubmit(e) {
+    e.preventDefault();
 
-    setMessage('');
     setError('');
+    setSuccess('');
 
     if (!token) {
       setError('This password reset link is invalid.');
       return;
     }
 
-    if (password !== confirmPassword) {
-      setError('Passwords do not match.');
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters long.');
       return;
     }
 
-    try {
-      setSubmitting(true);
+    if (password !== confirmPassword) {
+      setError("Passwords don't match.");
+      return;
+    }
 
+    setSubmitting(true);
+
+    try {
       const data = await api(
         ENDPOINTS.resetPassword,
         {
@@ -45,12 +55,12 @@ export default function ResetPassword() {
         }
       );
 
-      setMessage(data.message);
+      setSuccess(data.message);
 
-      // Give the customer a moment to see the success message,
-      // then return them to the login page.
       setTimeout(() => {
-        navigate('/login');
+        navigate('/login', {
+          replace: true,
+        });
       }, 2000);
     } catch (err) {
       setError(err.message);
@@ -61,99 +71,137 @@ export default function ResetPassword() {
 
   if (!token) {
     return (
-      <section className="section">
-        <div
-          className="container stack"
-          style={{ maxWidth: 520 }}
-        >
-          <h1>Reset Password</h1>
+      <section className="auth">
+        <div className="auth__card">
+          <div className="auth__head">
+            <span className="eyebrow">
+              Password reset
+            </span>
 
-          <p className="muted">
-            This password reset link is invalid.
+            <h1>Invalid reset link</h1>
+
+            <p className="muted">
+              This password reset link is missing or invalid.
+              Request a new reset link and try again.
+            </p>
+          </div>
+
+          <p
+            className="notice notice--warning"
+            style={{ marginBottom: 16 }}
+          >
+            <Info size={16} />
+            This reset link cannot be used.
           </p>
 
-          <div>
-            <Link to="/login" className="btn btn-dark">
-              Return to login
-            </Link>
-          </div>
+          <Link
+            to="/login"
+            className="btn btn-dark btn-block"
+          >
+            Return to login
+          </Link>
         </div>
       </section>
     );
   }
 
   return (
-    <section className="section">
-      <div
-        className="container stack"
-        style={{ maxWidth: 520 }}
-      >
-        <h1>Reset Password</h1>
+    <section className="auth">
+      <div className="auth__card">
+        <div className="auth__head">
+          <span className="eyebrow">
+            Account security
+          </span>
 
-        <p className="muted">
-          Enter your new password below.
-        </p>
+          <h1>Reset your password</h1>
+
+          <p className="muted">
+            Enter a new password for your account.
+          </p>
+        </div>
+
+        {error && (
+          <p
+            className="notice notice--warning"
+            style={{ marginBottom: 16 }}
+          >
+            <Info size={16} />
+            {error}
+          </p>
+        )}
+
+        {success && (
+          <p
+            className="notice"
+            style={{ marginBottom: 16 }}
+          >
+            {success}
+          </p>
+        )}
 
         <form
-          className="stack"
+          className="form"
           onSubmit={handleSubmit}
         >
-          <div>
+          <div className="field">
             <label htmlFor="password">
               New password
             </label>
 
             <input
               id="password"
+              name="password"
               type="password"
-              value={password}
-              onChange={(event) =>
-                setPassword(event.target.value)
-              }
-              required
               autoComplete="new-password"
+              minLength={8}
+              required
+              value={password}
+              onChange={(e) =>
+                setPassword(e.target.value)
+              }
             />
+
+            <p className="field-hint">
+              Password must be at least 8 characters long.
+            </p>
           </div>
 
-          <div>
-            <label htmlFor="confirm-password">
+          <div className="field">
+            <label htmlFor="confirmPassword">
               Confirm new password
             </label>
 
             <input
-              id="confirm-password"
+              id="confirmPassword"
+              name="confirmPassword"
               type="password"
-              value={confirmPassword}
-              onChange={(event) =>
-                setConfirmPassword(event.target.value)
-              }
-              required
               autoComplete="new-password"
+              minLength={8}
+              required
+              value={confirmPassword}
+              onChange={(e) =>
+                setConfirmPassword(e.target.value)
+              }
             />
           </div>
 
-          {error && (
-            <p className="error">
-              {error}
-            </p>
-          )}
-
-          {message && (
-            <p className="success">
-              {message}
-            </p>
-          )}
-
           <button
             type="submit"
-            className="btn btn-dark"
+            className="btn btn-dark btn-block"
             disabled={submitting}
           >
             {submitting
-              ? 'Resetting password...'
+              ? 'Resetting password…'
               : 'Reset password'}
           </button>
         </form>
+
+        <p className="auth__switch">
+          Remember your password?{' '}
+          <Link to="/login">
+            Log in
+          </Link>
+        </p>
       </div>
     </section>
   );
