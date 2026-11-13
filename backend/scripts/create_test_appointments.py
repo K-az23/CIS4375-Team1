@@ -54,7 +54,7 @@ with app.app_context():
             ),
             "service_id": service.service_id,
             "user_id": test_user.user_id,
-            "appointment_time": datetime(2026, 11, 11, 18, 0),
+            "appointment_time": datetime(2026, 11, 12, 18, 0),
             "status": "booked",
         },
         {
@@ -63,7 +63,7 @@ with app.app_context():
             ),
             "service_id": service.service_id,
             "user_id": test_user.user_id,
-            "appointment_time": datetime(2026, 11, 11, 19, 0),
+            "appointment_time": datetime(2026, 11, 14, 19, 0),
             "status": "booked",
         },
     ]

@@ -17,6 +17,7 @@ export default function Login() {
   const [resetMode, setResetMode] = useState(false);
   const [resetSent, setResetSent] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
+  const [resetSubmitting, setResetSubmitting] = useState(false);
 
   // Where to go after logging in: back to the page that sent them here when it's
   // one they're allowed to see, otherwise their dashboard.
@@ -48,12 +49,24 @@ export default function Login() {
 
   async function handleReset(e) {
     e.preventDefault();
+
+    if (resetSubmitting) return;
+
     setError('');
+    setResetSent(false);
+    setResetSubmitting(true);
+
     try {
-      await api(ENDPOINTS.forgotPassword, { method: 'POST', body: { email: resetEmail } });
+      await api(ENDPOINTS.forgotPassword, {
+        method: 'POST',
+        body: { email: resetEmail },
+      });
+
       setResetSent(true);
     } catch (err) {
       setError(err.message);
+    } finally {
+      setResetSubmitting(false);
     }
   }
 
@@ -66,14 +79,41 @@ export default function Login() {
             <h1>Reset your password</h1>
             <p className="muted">We'll email you a link to choose a new password.</p>
           </div>
-          {resetSent && <p className="notice" style={{ marginBottom: 16 }}><Check size={16} /> Check your email for the reset link.</p>}
+          {resetSent && (
+            <p className="notice" style={{ marginBottom: 16 }}>
+              <Check size={16} />
+              Check your email for the reset link.
+              If you don't see it, check your spam or junk folder
+            </p>
+          )}
           {error && <p className="notice notice--warning" style={{ marginBottom: 16 }}><Info size={16} /> {error}</p>}
           <form className="form" onSubmit={handleReset}>
             <div className="field">
               <label htmlFor="reset-email">Email address</label>
-              <input id="reset-email" type="email" required value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} />
+              <input
+                id="reset-email"
+                type="email"
+                autoComplete="email"
+                required
+                value={resetEmail}
+                onChange={(e) => {
+                  setResetEmail(e.target.value);
+                  setResetSent(false);
+                }}
+                disabled={resetSubmitting} 
+              />
             </div>
-            <button type="submit" className="btn btn-dark btn-block">Send reset link</button>
+            <button
+              type="submit"
+              className="btn btn-dark btn-block"
+              disabled={resetSubmitting}
+            >
+              {resetSubmitting
+                ? 'Sending reset link…'
+                : resetSent
+                  ? 'Reset link sent'
+                  : 'Send reset link'}
+              </button>
           </form>
           <p className="auth__switch">
             <button className="link-gold" onClick={() => setResetMode(false)}>Back to log in</button>

@@ -17,6 +17,7 @@ import Memberships from './pages/public/Memberships';
 import Contact from './pages/public/Contact';
 import Login from './pages/public/Login';
 import SignUp from './pages/public/SignUp';
+import ResetPassword from './pages/public/ResetPassword';
 
 const CustomerDashboard = lazy(() => import('./pages/customer/CustomerDashboard'));
 const BookAppointment = lazy(() => import('./pages/customer/BookAppointment'));
@@ -66,6 +67,7 @@ export default function App() {
             <Route path="/contact" element={<Contact />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<SignUp />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="*" element={<NotFound />} />
           </Route>
 
