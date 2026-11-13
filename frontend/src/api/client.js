@@ -6,6 +6,7 @@ export const ENDPOINTS = {
   me: '/api/auth/me',
   logout: '/api/auth/logout',
   forgotPassword: '/api/auth/forgot-password',
+  resetPassword: '/api/auth/reset-password',
   changePassword: '/api/auth/change-password',
 };
 
