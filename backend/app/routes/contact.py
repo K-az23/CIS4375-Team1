@@ -39,8 +39,7 @@ def submit_contact():
             email=fields["email"],
             message=notification_message
         )
-    except ContactError as exc:
-        print("Contact error:", exc)
+    except ContactError:
         return jsonify(error="Unable to send contact message"), 502
 
     return jsonify(message="Contact message sent"), 200
