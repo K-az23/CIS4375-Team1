@@ -1,11 +1,11 @@
 from datetime import datetime
 
 import pytest
-
 from app.extensions import db
 from app.models import User
 from app.models.appointments import Appointment
 from app.models.service import Service
+
 from tests.helpers import auth_header, make_user, reload
 
 
