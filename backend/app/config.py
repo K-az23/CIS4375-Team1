@@ -23,7 +23,7 @@ class Config:
     SQLALCHEMY_ENGINE_OPTIONS: ClassVar[dict] = {"pool_pre_ping": True, "pool_recycle": 1800}
     SECRET_KEY = os.getenv("SECRET_KEY")
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
-    JWT_ACCESS_TOKEN_EXPIRES = timedelta(minutes=30) # keeping to 30 min for now, better to change to an hour with refresh mechanism
+    JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1) 
     SETMORE_API_BASE_URL = os.getenv("SETMORE_API_BASE_URL", "")
     SETMORE_REFRESH_TOKEN = os.getenv("SETMORE_REFRESH_TOKEN", "")
     STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
