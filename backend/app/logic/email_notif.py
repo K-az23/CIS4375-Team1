@@ -75,6 +75,7 @@ def send_password_reset_email(to_email, reset_token):
         "We received a request to reset your password.\n\n"
         "Use the link below to choose a new password:\n\n"
         f"{reset_url}\n\n"
+        "Link will expire in 15 minutes.\n\n"
         "If you did not request a password reset, "
         "you can ignore this email."
     )
