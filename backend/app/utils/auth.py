@@ -47,8 +47,8 @@ def create_password_reset_token(user_id):
         salt="password-reset",
     )
 
-# validating the password token and returing to user, link expires in 30min
-def verify_password_reset_token(token, max_age=1800):
+# validating the password token and returing to user, link expires in 15min
+def verify_password_reset_token(token, max_age=900):
     serializer = URLSafeTimedSerializer(current_app.config["SECRET_KEY"])
 
     try:

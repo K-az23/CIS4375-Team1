@@ -1,35 +1,33 @@
+from datetime import timedelta
+
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_required
 from sqlalchemy.exc import SQLAlchemyError
 
 from ..extensions import db
 from ..logic.auth import (
-    email_taken,
-    get_customer_role,
-    get_user_by_email,
-    validate_change_password_data,
-    validate_forgot_password_data,
-    validate_login_data,
-    validate_registration_data,
-    validate_reset_password_data,
+     email_taken,
+     get_customer_role,
+     get_user_by_email,
+     validate_change_password_data,
+     validate_forgot_password_data,
+     validate_login_data,
+     validate_registration_data,
+     validate_reset_password_data,
 )
 from ..logic.email_notif import EmailError, send_password_reset_email
 from ..models import User
 from ..utils.auth import (
-    check_password,
-    create_password_reset_token,
-    hash_password,
-    verify_password_reset_token,
+     check_password,
+     create_password_reset_token,
+     hash_password,
+     verify_password_reset_token,
 )
 
 auth_bp = Blueprint(
     "auth",
     __name__,
 )
-
-
-# TBH TO IMPLEMENT: Send password reset link through AWS SES.
-# TBH TO IMPLEMENT: Stop printing reset tokens once SES is connected.
 
 
 
@@ -119,12 +117,22 @@ def login():
         return jsonify(error="Account is inactive"), 403
 
     # Only the user ID is stored as the JWT identity ~ will load current role from DB
-    access_token = create_access_token(identity=str(user.user_id))
-
+    # Customers and employees use the default 1-hour session.
+    # Admins receive a longer session for normal business operations.
+    if user.role is not None and user.role.name == "admin":
+        access_token = create_access_token(
+            identity=str(user.user_id),
+            expires_delta=timedelta(hours=6),
+        )
+    else:
+        access_token = create_access_token(
+            identity=str(user.user_id)
+        )
     return jsonify(
         access_token=access_token,
         user=user.to_dict(),
     )
+
 
 # POST /api/auth/logout
 @auth_bp.post("/logout")
