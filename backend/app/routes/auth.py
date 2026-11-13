@@ -1,4 +1,4 @@
-from flask import Blueprint, current_app, jsonify, request
+from flask import Blueprint, jsonify, request
 from flask_jwt_extended import create_access_token, get_jwt_identity, jwt_required
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -13,6 +13,7 @@ from ..logic.auth import (
     validate_registration_data,
     validate_reset_password_data,
 )
+from ..logic.email_notif import EmailError, send_password_reset_email
 from ..models import User
 from ..utils.auth import (
     check_password,
@@ -152,15 +153,24 @@ def forgot_password():
     }
 
     if user is None or not user.is_active:
-        return jsonify(response)
+        return jsonify(response), 200
 
-    reset_token = create_password_reset_token(user.user_id)
+    reset_token = create_password_reset_token(
+        user.user_id
+    )
 
-# For testing/development only - checking flow is connected.
-    if current_app.debug:
-        print(f"PASSWORD REST TOKEN for user {user.user_id}:{reset_token}")
+    try:
+        send_password_reset_email(
+            to_email=user.email,
+            reset_token=reset_token,
+        )
 
-    return jsonify(response)
+    except EmailError:
+        return jsonify(
+            error="Unable to send password reset email"
+        ), 502
+
+    return jsonify(response), 200
 
 
 # POST /api/auth/reset-password
