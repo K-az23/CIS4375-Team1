@@ -1,20 +1,36 @@
 import { useEffect, useState } from 'react';
-import { api, ENDPOINTS } from '../api/client';
+import { api, ENDPOINTS, SESSION_EXPIRED_EVENT } from '../api/client';
 import { AuthContext } from './authContext.js';
 import { isDemoMode } from './authUtils.js';
 import { updateProfile } from '../services/users';
 
 const demoUsers = {
-  customer: { id: 'demo-customer', firstName: 'John', lastName: 'Smith', email: 'demo-client@test.com', role: 'customer' },
-  owner: { id: 'demo-owner', firstName: 'Admin', lastName: '', email: 'demo-owner@test.com', role: 'owner' },
+  customer: {
+    id: 'demo-customer',
+    firstName: 'John',
+    lastName: 'Smith',
+    email: 'demo-client@test.com',
+    role: 'customer',
+  },
+  owner: {
+    id: 'demo-owner',
+    firstName: 'Admin',
+    lastName: '',
+    email: 'demo-owner@test.com',
+    role: 'owner',
+  },
 };
 
 const OWNER_ROLES = ['owner', 'admin'];
 
+// Put the backend's user fields into the format our pages already use.
 function toUser(data) {
   const u = data?.user ?? data;
+
   if (!u || (!u.id && !u.email)) return null;
+
   const role = String(u.role ?? 'customer').toLowerCase();
+
   return {
     id: u.id ?? u.user_id,
     firstName: u.firstName ?? u.first_name ?? '',
@@ -27,12 +43,32 @@ function toUser(data) {
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
     if (!isDemoMode) return null;
+
     const saved = sessionStorage.getItem('demoRole');
     return saved ? demoUsers[saved] : null;
   });
+
   const [checking, setChecking] = useState(!isDemoMode);
 
-    useEffect(() => {
+  // The API helper sends this notification when a login expires.
+  // Clearing the user lets ProtectedRoute return the visitor to Log in.
+  useEffect(() => {
+    if (isDemoMode) return;
+
+    function sessionExpired() {
+      setUser(null);
+      setChecking(false);
+    }
+
+    window.addEventListener(SESSION_EXPIRED_EVENT, sessionExpired);
+
+    return () => {
+      window.removeEventListener(SESSION_EXPIRED_EVENT, sessionExpired);
+    };
+  }, []);
+
+  // After a browser refresh, ask Flask whether the saved login still works.
+  useEffect(() => {
     if (isDemoMode) return;
 
     const controller = new AbortController();
@@ -41,7 +77,10 @@ export function AuthProvider({ children }) {
       try {
         if (!localStorage.getItem('token')) return;
 
-        const data = await api(ENDPOINTS.me, { signal: controller.signal });
+        const data = await api(ENDPOINTS.me, {
+          signal: controller.signal,
+        });
+
         if (!controller.signal.aborted) {
           setUser(toUser(data));
         }
@@ -51,6 +90,7 @@ export function AuthProvider({ children }) {
         if ([401, 403, 404].includes(error.status)) {
           localStorage.removeItem('token');
         }
+
         setUser(null);
       } finally {
         if (!controller.signal.aborted) {
@@ -60,10 +100,11 @@ export function AuthProvider({ children }) {
     }
 
     restoreSession();
+
     return () => controller.abort();
   }, []);
 
-    async function login(email, password) {
+  async function login(email, password) {
     const data = await api(ENDPOINTS.login, {
       method: 'POST',
       body: { email, password },
@@ -78,10 +119,18 @@ export function AuthProvider({ children }) {
 
     localStorage.setItem('token', token);
     setUser(loggedIn);
+
     return loggedIn;
   }
 
-  async function register({ firstName, lastName, email, phone, password }) {
+  // Registration creates the account, then logs the new customer in.
+  async function register({
+    firstName,
+    lastName,
+    email,
+    phone,
+    password,
+  }) {
     await api(ENDPOINTS.register, {
       method: 'POST',
       body: {
@@ -96,20 +145,31 @@ export function AuthProvider({ children }) {
     try {
       return await login(email, password);
     } catch {
-      throw new Error('Your account was created. Go to Log in to sign in.');
+      throw new Error(
+        'Your account was created. Go to Log in to sign in.'
+      );
     }
   }
 
-
+  // Update the saved user after their profile changes.
+  // This keeps greetings and account details up to date.
   async function saveProfile(fields) {
     const profile = await updateProfile(fields);
     const savedUser = toUser(profile);
-    setUser((current) => savedUser && current?.id === savedUser.id ? savedUser : current);
+
+    setUser((current) =>
+      savedUser && current?.id === savedUser.id
+        ? savedUser
+        : current
+    );
+
     return profile;
   }
+
   function loginAsDemo(role) {
     sessionStorage.setItem('demoRole', role);
     setUser(demoUsers[role]);
+
     return demoUsers[role];
   }
 
@@ -119,13 +179,27 @@ export function AuthProvider({ children }) {
       setUser(null);
       return;
     }
-    await api(ENDPOINTS.logout, { method: 'POST' }).catch(() => null);
+
+    await api(ENDPOINTS.logout, {
+      method: 'POST',
+    }).catch(() => null);
+
     localStorage.removeItem('token');
     setUser(null);
   }
 
   return (
-        <AuthContext.Provider value={{ user, checking, login, register, logout, loginAsDemo, saveProfile }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        checking,
+        login,
+        register,
+        logout,
+        loginAsDemo,
+        saveProfile,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

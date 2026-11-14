@@ -1,4 +1,7 @@
 import { useEffect, useState } from 'react';
+import ItemCategories from './ItemCategories';
+import InventoryDetails from './InventoryDetails';
+import InventoryLowStock from './InventoryLowStock';
 import { Plus, Check } from 'lucide-react';
 import DashboardHeader from '../../components/DashboardHeader';
 import Panel from '../../components/Panel';
@@ -52,6 +55,10 @@ function stockStatus(row) {
 export default function Inventory() {
   const [items, setItems] = useState(isDemoMode ? inventoryItems : null);
   const [tab, setTab] = useState(isDemoMode ? 'per-use' : 'all');
+  // Keep track of the open detail panel and the low-stock list.
+  const [selectedItemId, setSelectedItemId] = useState(null);
+  const [showCategories, setShowCategories] = useState(false);
+  const [showLowStock, setShowLowStock] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [newItem, setNewItem] = useState(emptyItem);
   const [message, setMessage] = useState('');
@@ -170,7 +177,7 @@ export default function Inventory() {
           unit: newItem.unit,
           ...(newItem.cost === '' ? {} : { price: Number(newItem.cost) }),
         });
-        setItems((current) => [...current, item]);
+        setItems((current) => [...(current ?? []), item]);
         setTab('all');
       }
 
@@ -182,6 +189,26 @@ export default function Inventory() {
     } finally {
       setSaving(false);
     }
+  }
+
+  // Replace the saved row with the latest item returned by Flask.
+  // This also causes the low-stock list to refresh.
+  function receiveUpdatedItem(updated) {
+    setItems((current) => current.map((item) => item.item_id === updated.item_id ? updated : item));
+  }
+
+  // Keep category labels and the New item dropdown in sync after a change.
+  // Clear a selected category if it was deactivated while the form was open.
+  function receiveCategories(savedCategories) {
+    setCategories(savedCategories);
+    setCategoryError('');
+    setNewItem((current) => {
+      const selectedCategory = savedCategories.find((category) => String(category.category_id) === current.category);
+      if (current.category && (!selectedCategory || !selectedCategory.is_active)) {
+        return { ...current, category: '' };
+      }
+      return current;
+    });
   }
 
   const columns = [
@@ -196,13 +223,20 @@ export default function Inventory() {
       label: '',
       align: 'right',
       render: (r) => (
-        <div className="row" style={{ justifyContent: 'flex-end', flexWrap: 'nowrap' }}>
+        <div className="row" style={{ justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+          {!isDemoMode && (
+            <button className="btn btn-outline btn-sm" disabled={saving || selectedItemId === r.id} onClick={() => {
+              setSelectedItemId(r.id);
+              setShowForm(false);
+              setShowCategories(false);
+            }}>Details / edit</button>
+          )}
           {r.type === 'bulk' && (
-            <button className="btn btn-outline btn-sm" onClick={() => updateQty(r, -1)} disabled={saving || !r.qty || r.isActive === false}>
+            <button className="btn btn-outline btn-sm" onClick={() => updateQty(r, -1)} disabled={saving || selectedItemId != null || !r.qty || r.isActive === false}>
               Mark one used
             </button>
           )}
-          <button className="btn btn-outline btn-sm" onClick={() => restock(r)} disabled={saving || r.isActive === false}>
+          <button className="btn btn-outline btn-sm" onClick={() => restock(r)} disabled={saving || selectedItemId != null || r.isActive === false}>
             {isDemoMode ? `Re-stock +${r.lastOrderQty}` : 'Re-stock'}
           </button>
         </div>
@@ -219,7 +253,7 @@ export default function Inventory() {
   return (
     <>
       <DashboardHeader eyebrow="Stock" title="Inventory" subtitle="View stock levels and record inventory changes." showIcons>
-        <button className="btn btn-dark btn-sm" onClick={() => setShowForm(!showForm)} disabled={saving || !items}>
+        <button className="btn btn-dark btn-sm" onClick={() => { setSelectedItemId(null); setShowCategories(false); setShowForm(!showForm); }} disabled={saving || !items}>
           <Plus size={16} /> {showForm ? 'Close form' : 'New item'}
         </button>
       </DashboardHeader>
@@ -229,6 +263,33 @@ export default function Inventory() {
 
         {actionError && <p role="alert" className="notice notice--warning">{actionError}</p>}
 
+        {/* These controls use the live backend. The demo page stays as it was. */}
+        {!isDemoMode && (
+          <div><button className="btn btn-outline" onClick={() => setShowLowStock(!showLowStock)}>
+            {showLowStock ? 'Hide low stock' : 'Show low stock'}
+          </button></div>
+        )}
+        {/* Category management uses the existing category API. */}
+        {!isDemoMode && (
+          <div>
+            <button type="button" className="btn btn-outline" disabled={saving} onClick={() => {
+              setSelectedItemId(null);
+              setShowForm(false);
+              setShowCategories(!showCategories);
+            }}>
+              {showCategories ? 'Close categories' : 'Manage categories'}
+            </button>
+          </div>
+        )}
+        {!isDemoMode && showCategories && (
+          <ItemCategories categories={categories} error={categoryError}
+            onUpdated={receiveCategories} onBusyChange={setSaving} />
+        )}
+        {!isDemoMode && showLowStock && <InventoryLowStock inventory={items} />}
+        {!isDemoMode && selectedItemId != null && (
+          <InventoryDetails key={selectedItemId} itemId={selectedItemId} categories={categories}
+            onUpdated={receiveUpdatedItem} onBusyChange={setSaving} onClose={() => setSelectedItemId(null)} />
+        )}
         {showForm && (
           <Panel title="New inventory item">
             <form className="form" onSubmit={addItem} style={{ marginTop: 12 }}>

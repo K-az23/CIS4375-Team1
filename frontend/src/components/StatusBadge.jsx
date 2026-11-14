@@ -14,11 +14,20 @@ const variants = {
   Low: 'warning',
   'No card': 'warning',
   'No-show': 'danger',
+  Failed: 'danger',
+  Refunded: 'info',
   Restricted: 'danger',
   Out: 'danger',
 };
 
 export default function StatusBadge({ status }) {
   const variant = variants[status];
-  return <span className={`badge ${variant ? `badge--${variant}` : ''}`}>{status}</span>;
+
+  return (
+    <span
+      className={`badge ${variant ? `badge--${variant}` : ''}`}
+    >
+      {status}
+    </span>
+  );
 }

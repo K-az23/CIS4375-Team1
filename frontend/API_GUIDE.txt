@@ -1,308 +1,226 @@
-API GUIDE (FOR FRONTEND DEVELOPERS)
+API GUIDE — FRONTEND INTEGRATION
 
-PURPOSE
-How the React frontend connects to the Flask backend: where requests
-go, what comes back, and how to set up your computer to test it.
-For how the backend itself is built, see backend/README.txt.
+HOW REQUESTS WORK
+React pages call functions in frontend/src/services/.
+Those functions use apiRequest() in frontend/src/services/api.js.
+The helper adds the backend address, JSON headers, and login token.
+The older api() wrapper in frontend/src/api/client.js uses the same helper.
 
-HOW IT FITS TOGETHER
-----------------------------------------------------------------------
-React page or component
-  -> function in frontend/src/services/  (the only place that calls
-                                          the API; pages never call
-                                          fetch directly)
-  -> Flask backend at VITE_API_URL
-  -> MySQL database (or Setmore)
-  -> JSON back to React
+FRONTEND ADDRESS SETTINGS
+VITE_API_URL may include /api at the end, or just the server address.
+If it is unset, /api requests use the Vite proxy.
 
-The frontend never talks to the database or Setmore directly.
+Normal local backend:
+  VITE_API_URL=http://localhost:5000/api
 
-WHERE TO CONNECT
-----------------------------------------------------------------------
-Base URL (local):    http://localhost:5000
-Base URL (deployed): TBD once the backend is on AWS
+Private practice backend:
+  VITE_API_URL=http://127.0.0.1:5013/api
+  VITE_DEMO_AUTH=false
 
-Set it in frontend/.env (no /api at the end; the paths include it):
-  VITE_API_URL=http://localhost:5000
+For a deployed frontend, use the deployed backend address.
+Restart Vite after changing its environment settings.
+Set the intended address before building because Vite includes it in the build.
 
-Every request goes through api() in frontend/src/api/client.js, which
-adds VITE_API_URL and the login token. Never hardcode the address, so
-switching to the deployed backend later only means changing this one
-line.
+Example service helper:
+  import { apiRequest } from './api';
 
-Example (in a file in frontend/src/services/):
-  import { api } from '../api/client';
   export function getServices() {
-    return api('/api/services').then((data) => data.services);
+    return apiRequest('/services').then((data) => data.services);
   }
 
-RUNNING THE BACKEND LOCALLY
-----------------------------------------------------------------------
-To test against real data, the backend must be running on your
-computer at the same time as the frontend:
+LOGIN AND PERMISSIONS
+POST /api/auth/register creates a customer account without a token.
+POST /api/auth/login returns access_token and user.
+AuthContext saves the token in localStorage under token.
+The shared helper sends Authorization: Bearer <token>.
+Normal login tokens use main's one-hour duration.
 
-1. Follow FIRST-TIME SETUP in backend/README.txt (Python, venv,
-   packages). You need a backend/.env with database credentials
-   (ask the database manager privately, never in the group chat)
-   and your IP added to the RDS security group.
-2. Open two terminals:
-     Terminal 1 (backend):   cd backend
-                             venv\Scripts\Activate.ps1
-                             python run.py
-     Terminal 2 (frontend):  cd frontend
-                             npm run dev
-3. Check the backend works: http://localhost:5000/api/health
-   should show {"status": "ok"}.
+A protected 401 clears an expired login.
+A wrong login password shows its normal error.
+Admin routes enforce the admin role on the backend.
+Both API import paths use the auth:session-expired notification.
 
-REQUEST AND RESPONSE RULES
-----------------------------------------------------------------------
-Full details for every endpoint (inputs, example responses, errors,
-and rules) are in CIS4375_API_Workbook.xlsx:
-  - Priority Overview: every endpoint and its status. Only connect
-    to endpoints marked Done.
-  - Conventions: error format, status codes, dates, money.
-  - Object Shapes: every field and its type.
-  - One sheet per area (Services, Auth, Users, ...).
+POST /api/auth/logout lets the frontend remove its saved token.
+This does not revoke an already-issued token on the server.
+GET /api/auth/me restores the signed-in user's details.
+GET and PATCH /api/users/me load and save the user's profile.
 
-The short version:
-  - Everything is JSON.
-  - One record comes back under a singular key:  { "service": {...} }
-  - A list comes back under a plural key:        { "services": [...] }
-  - Errors always look like:                     { "error": "message" }
-    so you can show the message to the user.
-  - Money and quantities are numbers (120.0), not strings.
-  - Dates are ISO 8601 in UTC: "2026-10-15T10:28:00Z"
-  - Field names are snake_case: service_name, duration_minutes.
+PASSWORD CHANGES AND RESET
+POST /api/auth/change-password requires a signed-in user.
+It accepts current_password and new_password.
+An incorrect current password returns 400 and keeps the user signed in.
 
-STATUS CODES TO HANDLE
-----------------------------------------------------------------------
-  200 / 201  Success
-  400        Invalid input; show the error (and "details" if present)
-  401        Not logged in or login expired; send the user to Login
-  403        Wrong role; show a "no permission" message
-  404        Not found
-  409        Duplicate (e.g. email already registered)
-  500        Server problem; show a generic "try again" message
+POST /api/auth/forgot-password sends a reset email for an active account.
+POST /api/auth/reset-password accepts token and password.
+Reset links expire after 30 minutes.
+Changing a password invalidates earlier reset links for that account.
+Request a new email when testing the updated reset-link format.
 
-LOGIN
-----------------------------------------------------------------------
-Login uses a token (JWT) sent with every request.
+ERROR HANDLING
+200/201: success.
+204: success with no response body.
+400: invalid input; show error and details when provided.
+401: invalid or expired login.
+403: account or role is not permitted.
+404: record not found.
+409: duplicate or conflicting update.
+500/502/503: server or external-service problem; allow a retry.
 
-1. POST /api/auth/login with {"email", "password"} returns
-   { "access_token": "...", "user": {...} }
-2. Save access_token in localStorage under "token".
-   (AuthContext must read data.access_token, not data.token.)
-3. client.js adds "Authorization: Bearer <token>" to every request.
-4. Tokens expire after 30 minutes. A 401 means: send the user to Login.
-5. POST /api/auth/register returns { "user": {...} } but NO token, so
-   log the user in right after registering.
+Never display a failed save as successful.
+Do not replace failed live requests with sample account data.
 
-Admin routes check the role on the server; a customer gets 403.
+CONNECTED FEATURES
+Services:
+Public lists/details and admin create/edit/deactivate/reactivate.
+The public page preserves main's categories, photos, and name mapping.
+An empty live list or request failure is shown explicitly.
+
+Users:
+Customer profile and admin customer details/history.
+The Customers table includes last completed visit and reported spending.
+Membership and account controls remain available.
+
+Item categories:
+Admin management and active inventory choices.
+
+Inventory:
+Stock list/details, creation, edits, deactivation, restocking,
+usage, corrections, low-stock view, and transaction history.
+
+Service materials:
+Read and save a service's default material list.
+
+Purchasing:
+Supplier purchase records and status changes.
+
+Orders:
+Customer orders/invoices and admin order management.
+
+Catalog:
+Public products/options and admin product management.
+
+Hair specifications:
+Customer saved choices and fitted-system reordering.
+
+Appointments:
+Setmore booking links, imported bookings, admin tracking,
+and links between received orders and appointments.
+
+Payments:
+Customer/admin history, details, invoices, and card refunds.
+Saved-card form source remains in the project.
+Card on File is hidden from customer navigation and routing,
+following main's current booking policy.
+Invoice payments remain available.
+
+Contact:
+Validated message delivery through the configured email service.
+
+Reports:
+Sales, inventory, customer spending, and membership flags.
+Profitability is deferred; its endpoint intentionally returns 501.
+
+See registered backend routes and frontend service helpers
+for exact paths, request fields, and response shapes.
+
+DASHBOARD AND SETTINGS
+In live mode the owner dashboard reads appointment, order,
+inventory-report, and sales-report APIs.
+Dashboard dates follow Central Time.
+It reads the last saved Calendar sync.
+Refreshing the dashboard does not contact Setmore.
+
+Customer orders and supplier purchases have separate navigation links.
+Admin Settings is informational.
+It does not save notification preferences.
+
+SETMORE
+Customers book, reschedule, and cancel through Setmore.
+A saved card or deposit is not required to book.
+The admin Calendar imports bookings into the application's database.
+No-show tracking does not automatically charge a fee.
+
+Keep SETMORE_API_BASE_URL and SETMORE_REFRESH_TOKEN on the backend.
+The private launcher's --mock-setmore flag selects simulated responses.
+Omit that flag to test the real read-only import.
+
+The Setmore reader returns one provider page at a time.
+Appointment logic handles pagination and saving.
+Keep those two parts matched when updating the implementation.
+
+Main's standalone sync_services_from_setmore helper remains available.
+It defaults to a dry run.
+
+EMAIL
+Keep EMAIL_FROM and EMAIL_APP_PASSWORD on the backend.
+Use CONTACT_DELIVERY_METHOD=smtp for SMTP Contact delivery.
+CONTACT_TO_EMAIL selects the contact inbox.
+EMAIL_FROM is the fallback contact inbox.
+CLIENT_URL must match the frontend address used in reset-email links.
+The public business email may differ from the delivery inbox.
+
+STRIPE
+Use matching sandbox keys for class testing.
+Only VITE_STRIPE_PUBLISHABLE_KEY belongs on the frontend.
+STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET belong on the backend.
+
+Card numbers and CVC values go to Stripe.
+Do not store them in the application's database.
+
+Forward the required payment and saved-card events to:
+  /api/webhooks/stripe
+
+Confirm the saved payment status after Stripe confirmation.
+The webhook may arrive shortly afterward.
+
+DATABASE AND DEMO HANDOFF
+Normal backend startup uses backend/run.py and the configured database.
+
+The database owner must review the required setup scripts:
+  backend/create_catalog_tables.py
+  backend/create_hair_specification_table.py
+  backend/create_purchases_table.py
+  backend/upgrade_appointments.py
+
+These scripts require --apply.
+Coordinate with the database owner before using a shared database.
+Creating a table does not upgrade an existing table's columns.
+
+backend/run_inventory_local.py uses a private practice database.
+Its example accounts and fixed test secrets are local testing aids.
+Keep this launcher out of the source commit unless the team chooses
+to include it as a separate demo tool.
+Do not copy its accounts or secrets into normal startup.
+
+FINAL CHECKS
+Use npm ci in frontend to install package-lock.json versions.
+Run npm run lint and npm run build.
+Test browser workflows against the intended backend.
+
+Keep these out of the source commit:
+  .env files
+  private databases
+  virtual environments
+  node_modules
+  generated dist files
+
+Review the final changes against the team's chosen PR target.
+Local testing does not replace testing the final combined branch.
 
 TROUBLESHOOTING
-----------------------------------------------------------------------
-CORS error in the browser console
-  The backend only accepts requests from the address in
-  backend/.env CLIENT_URL (default http://localhost:5173, Vite's
-  default port). If your React app runs on a different port, update
-  CLIENT_URL to match and restart the backend.
+Connection refused:
+Check Flask is running on the configured port.
 
-"Failed to fetch" / connection refused
-  The backend isn't running. Start it (Terminal 1 above).
+CORS error:
+Backend CLIENT_URL must match the frontend origin exactly.
 
-/api/health works but /api/health/db shows an error
-  The backend can't reach the database. Check backend/.env and that
-  your current IP is in the RDS security group (home and campus IPs
-  are different, so you may need both).
+Database error:
+Check access and required schema with the database owner.
 
-Changes to .env not taking effect
-  Restart the server. Both Vite and Flask only read .env at startup.
+Old settings:
+Restart Flask or Vite after changing its environment.
 
-AVAILABLE ENDPOINTS
-----------------------------------------------------------------------
-Only endpoints listed here are built and ready to connect.
+Calendar Details:
+The appointment details panel appears below the appointment list.
 
-GET /api/services                         SVC-01  List active services (public)
-GET /api/services/<service_id>            SVC-02  Get one active service (public)
-                                                  404 if missing or inactive
-GET /api/admin/services                   SVC-03  List services with admin fields (admin)
-                                                  ?include_inactive=true to include inactive
-POST /api/admin/services                  SVC-04  Create a service (admin)
-                                                  Required: service_name, duration_minutes, price
-                                                  Optional: description, setmore_service_id
-PATCH /api/admin/services/<service_id>    SVC-05  Edit a service (admin)
-                                                  Send only the fields being changed:
-                                                  service_name, description, duration_minutes,
-                                                  price, setmore_service_id
-                                                  {"is_active": true} reactivates
-DELETE /api/admin/services/<service_id>   SVC-06  Deactivate a service (admin)
-                                                  Does not delete; hides it from customers
-
-service_id is a number (e.g. /api/services/3).
-Admin login is not enforced yet on /api/admin/services routes.
-
-AUTH AND ACCOUNT (login required unless noted)
-POST /api/auth/register                   Create a customer account (public)
-                                          Required: first_name, last_name, email,
-                                          phone (10 digits), password (8+ characters)
-POST /api/auth/login                      Log in (public); returns access_token and user
-POST /api/auth/logout                     Log out; then delete the saved token
-GET  /api/auth/me                         The logged-in user
-POST /api/auth/forgot-password            Start a password reset (public)
-POST /api/auth/reset-password             Finish a password reset (public): token, password
-GET  /api/users/me                        Profile
-PATCH /api/users/me                       Edit profile: first_name, last_name, email, phone
-
-PAYMENTS (hairpiece orders only)
-POST /api/payments/create-intent          Start paying an order (customer)
-                                          Body: {"order_id": 2}
-                                          201: {"client_secret": "pi_..._secret_..."}
-                                          404 order missing or not yours
-                                          409 cancelled, no price, or already paid
-                                          Calling it again for the same unpaid order
-                                          returns the same client_secret (no double charge)
-GET  /api/payments                        The customer's payments, newest first
-                                          {"payments": [{payment_id, order_id, amount,
-                                          payment_method, payment_type, status,
-                                          charged_at, setmore_booking_id}]}
-GET  /api/payments/<payment_id>           One payment; 404 if not theirs
-GET  /api/admin/payments                  All payments, each with a "customer"
-                                          {user_id, first_name, last_name, email} (admin)
-                                          status=pending|succeeded|failed|refunded|cancelled
-                                          ?from=2026-11-01&to=2026-11-30 (dates in UTC)
-GET  /api/admin/payments/<payment_id>     One payment with customer (admin)
-POST /api/admin/payments/<payment_id>/refund
-                                          Fully refund a card payment (admin), no body
-                                          200: {"payment": {..., "status": "refunded"}}
-                                          409 already refunded, not paid yet, or cash
-                                          Refunds made in the Stripe dashboard also
-                                          show up as "refunded" (through the webhook)
-
-
-Payment status values: pending, succeeded, failed, refunded, cancelled.
-charged_at is UTC; convert to local time for display.
-
-HAIR CATALOG (public, no login)
-GET  /api/catalog
-     {"system_types": [{"key": "area", "label": "Hair loss area system", "price": 400.0},
-                       {"key": "full", "label": "Full custom system", "price": 650.0}],
-      "options": {"hair_type": ["Wavy", "Curly", "Straight"],
-                  "base_type": ["Skin", "Lace"],
-                  "skin_thickness": ["Thin (.02mm)", "Thick (.08mm)"],
-                  "color": ["#1", "#2", "#3", "#4", "#5", "#6", "#7"],
-                  "grey_percent": [0, 10, 20, 30, 40, 50, 60, 70, 80],
-                  "density": ["Light", "Medium", "Heavy"],
-                  "dimensions": ["6 x 8", "7 x 9", "8 x 10"]},
-      "shipping_days": 10}
-     Same values as data/hairOptions.js, with snake_case keys
-     (hairType -> hair_type, greyPercent -> grey_percent, ...).
-     Use this instead of hairOptions.js so prices live in one place.
-     The full system price is a starting price; the real amount is set
-     on the invoice after the consultation.
-
-HAIRPIECE ORDERS
-Order statuses: invoice_sent (waiting to be paid) -> pending (paid; the Stripe
-webhook sets this) -> ordered -> received, or cancelled.
-UI labels: invoice_sent = "Invoice sent" (customer side: "Invoice due"),
-pending = "Pending", ordered = "Ordered", received = "Received".
-
-POST /api/hairpiece-orders                Customer orders an area system online
-     Body: {"specs": {"hair_type": "Wavy", "base_type": "Skin",
-            "skin_thickness": "Thin (.02mm)", "color": "#3", "grey_percent": 20,
-            "density": "Medium", "dimensions": "7 x 9"}}
-     Every spec must be one of the GET /api/catalog options (snake_case keys).
-     201: {"order": {order_id, order_type: "area", system_label, price: 400.0,
-           order_status: "invoice_sent", hair_type, color_code, grey_percentage,
-           density, skin_type, base_type, dimensions, placed_at, user_id}}
-     400 lists each invalid spec in "details".
-     Next: POST /api/payments/create-intent {"order_id"} to pay it.
-GET  /api/hairpiece-orders                The customer's orders, newest first
-GET  /api/hairpiece-orders/<order_id>     One order; 404 if not theirs
-POST /api/hairpiece-orders/<order_id>/cancel
-     Only while invoice_sent (unpaid); 409 after payment ("contact the salon").
-
-GET  /api/hairpiece-orders/saved-system   My Hair System page, Customer Dashboard
-     The customer's most recent PAID full system (from their consultation).
-     {"saved_system": {order_id, system_type: "full", system_label,
-       price, last_ordered, specs: {hair_type, base_type, skin_thickness,
-       color, grey_percent, density, dimensions}}}
-     or {"saved_system": null} if they don't have one yet.
-     specs use the same keys as the catalog, so SpecList can show them.
-POST /api/hairpiece-orders/reorder        "Re-order this system" button, no body
-     201: {"order": {...}} a new full order with the same specs and price,
-          status invoice_sent. Then pay it with create-intent.
-     404 no saved system; 409 an earlier re-order is still unpaid (pay or
-     cancel it first), or an option is no longer offered.
-
-POST /api/admin/hairpiece-orders          Invoice after a consultation (admin)
-     Body: {"user_id": 5, "system_type": "full" or "area",
-            "specs": {...same keys...}, "price": 725}
-     full: price required, at least 650; dimensions can be any text (custom).
-     area: price is always 400 (any price sent is ignored).
-     The customer then pays it like any order (create-intent).
-GET  /api/admin/hairpiece-orders          All orders, each with "customer"
-     {user_id, first_name, last_name, email} (admin)
-     Optional: ?status=invoice_sent|pending|ordered|received|cancelled
-PATCH /api/admin/hairpiece-orders/<order_id>/status   (admin)
-     Body: {"status": "ordered"}    Allowed: pending -> ordered -> received.
-     "cancelled" from invoice_sent or pending; 409 if the order is paid and
-     not refunded (refund first: POST /api/admin/payments/<id>/refund).
-     409 for any other jump (e.g. pending -> received).
-
-REPORTS (admin)
-Revenue counts only succeeded payments (refunded/cancelled are excluded).
-Days follow the salon's clock (Houston), not UTC.
-
-GET  /api/admin/reports/sales?days=7      days: 1 to 90, default 7
-     {"days": [{"date": "2026-11-11", "label": "Wed", "value": 1245.0,
-                "today": true}, ...oldest first],
-      "total": 4520.0}
-     Same shape as weeklySales in sampleData (label, value, today), so
-     BarChart can use data.days directly. Admin Dashboard "Sales today" is
-     the entry with today: true.
-GET  /api/admin/reports/customer-spending
-     {"customers": [{user_id, first_name, last_name, email, total_spent,
-                     payment_count, last_payment_at}, ...highest first],
-      "average_spend": 399.99}
-     Reports "Top customers" and "Average spend per customer".
-     (lastVisit in the sample data was an appointment date; use
-     last_payment_at until appointments are connected.)
-GET  /api/admin/reports/profitability     501, not built yet
-GET  /api/admin/reports/inventory         501; use
-                                          GET /api/admin/inventory-items/low-stock
-
-FILTER BY CUSTOMER (admin, Customers page detail view)
-GET  /api/admin/hairpiece-orders?user_id=5
-GET  /api/admin/payments?user_id=5
-Both combine with ?status=.
-
-NOT USED (out of scope, do not connect):
-POST /api/payments/setup-method and GET /api/payments/method
-(card on file). Leave the Payment Method page as is.
-
-CHECKOUT PAGE FLOW (Stripe)
-----------------------------------------------------------------------
-Packages:  npm install @stripe/stripe-js @stripe/react-stripe-js
-frontend/.env:  VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...
-                (Capstone sandbox publishable key; safe in the browser)
-
-1. POST /api/payments/create-intent {"order_id"} -> client_secret.
-2. Show Stripe's form:
-     const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
-     <Elements stripe={stripePromise} options={{ clientSecret }}>
-       <PaymentElement />
-     </Elements>
-   (create stripePromise once, outside the component)
-3. On Pay:
-     const { error } = await stripe.confirmPayment({
-       elements,
-       redirect: 'if_required',
-       confirmParams: { return_url: window.location.href },
-     });
-   If error, show error.message. Otherwise the payment went through.
-4. The database is updated by Stripe's webhook a moment later, so
-   GET /api/payments may still show "pending" for a second or two.
-   Re-check after a short delay before showing it as paid.
-
-Test cards: 4242 4242 4242 4242 (success), 4000 0000 0000 0002
-(declined). Any future expiry, any CVC, any ZIP.
+Do not share secret keys or password-reset links in logs or screenshots.

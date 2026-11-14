@@ -1,22 +1,18 @@
 from ..extensions import db
 from ..models import Role, User
+from ..utils.phone import normalize_phone
 
 MAX_FIRST_NAME_LENGTH = 100
 MAX_LAST_NAME_LENGTH = 100
 MAX_EMAIL_LENGTH = 150
-
-# Registration accpets exactly 10 digits for phone numbers
-# Will automatically add '+1' before storing in db for standardized SMS integration
-MAX_PHONE_DIGITS = 10
 MIN_PASSWORD_LENGTH = 8
 
-#bcrypt only uses passwords up to 72 bytes, so putting a cap on max password.
+# Bcrypt accepts passwords up to 72 bytes.
 MAX_PASSWORD_LENGTH = 72
 
 
-# --------- Basic Rules/Validation/Authentication/RBAC
-
-def _clean_required_text(data,field, max_length, cleaned, errors):
+# Check required text before saving it.
+def _clean_required_text(data, field, max_length, cleaned, errors):
     value = data.get(field)
 
     if not isinstance(value, str) or not value.strip():
@@ -28,32 +24,30 @@ def _clean_required_text(data,field, max_length, cleaned, errors):
 
 
 def _normalize_email(value):
-    # normalizing email addresses so before lookup, differently cased varsions 
-    # of the same email address are not treated as separate accounts
+    # Treat differently capitalized versions as the same email address.
     return value.strip().lower()
 
 
 def _normalize_phone(value):
-    # registration will only accept exactly 10 digits
-    # display formatting should be handled in frontend
-    # the db will store with +1 so it can be consistently with SMS integrations.
+    # Use the team's phone cleaner, including spaces and parentheses.
+    # Store a US number with +1 followed by its 10 digits.
     if not isinstance(value, str):
         return None
 
-    value = value.strip()
+    phone = normalize_phone(value)
 
-    if len(value) != MAX_PHONE_DIGITS or not value.isdigit():
-        return None
+    if phone and phone.startswith("+1") and len(phone) == 12:
+        return phone
 
-    return f"+1{value}"
+    return None
 
+
+# Check all the information needed to create a customer account.
 def validate_registration_data(data):
-    """Return cleaned registration fields and validation erros."""
-
     cleaned = {}
     errors = {}
 
-    # To accept either camelCase or snake_case field names
+    # Accept either naming style used by the frontend.
     data = {
         **data,
         "first_name": data.get("first_name") or data.get("firstName"),
@@ -88,7 +82,6 @@ def validate_registration_data(data):
                 f"Must be {MAX_EMAIL_LENGTH} characters or fewer"
             )
 
-        # a basic structural validation catch, just to ensure an actual email structure
         elif (
             email.count("@") != 1
             or email.startswith("@")
@@ -118,25 +111,24 @@ def validate_registration_data(data):
         errors["password"] = "Required"
 
     elif len(password) < MIN_PASSWORD_LENGTH:
-        errors["password"] =(
-            f"Password is too short. Must be at least {MIN_PASSWORD_LENGTH} characters."
+        errors["password"] = (
+            f"Password must be at least {MIN_PASSWORD_LENGTH} characters."
         )
 
     elif len(password.encode("utf-8")) > MAX_PASSWORD_LENGTH:
         errors["password"] = (
-            f"Password is too long. Must be shorter than {MAX_PASSWORD_LENGTH} characters."
+            f"Password must be {MAX_PASSWORD_LENGTH} bytes or fewer."
         )
 
     else:
-        # Password remains plaintext only long enough for security to hash it
+        # The route hashes this password before putting it in the database.
         cleaned["password"] = password
 
     return cleaned, errors
 
 
+# Check whether an email belongs to another account.
 def email_taken(email, exclude_user_id=None):
-    # for email check, only pulling user ID to determine wheter email already exists
-    # also allowing email change from User profile - still checks against DB
     query = db.select(User.user_id).where(User.email == email)
 
     if exclude_user_id is not None:
@@ -144,41 +136,43 @@ def email_taken(email, exclude_user_id=None):
 
     return db.session.execute(query).first() is not None
 
+
 def get_customer_role():
-    # The backend explicityly assiging every new account the customer role.
+    # New accounts always receive the customer role.
     query = db.select(Role).where(Role.name == "customer")
 
     return db.session.execute(query).scalar_one_or_none()
 
 
-# ---------- Login support
+# Check the fields sent by the login form.
 def validate_login_data(data):
-    """Return cleaned login fields and validation errors."""
     cleaned = {}
     errors = {}
 
     email = data.get("email")
+
     if not isinstance(email, str) or not email.strip():
         errors["email"] = "Required"
     else:
         cleaned["email"] = _normalize_email(email)
 
     password = data.get("password")
+
     if not isinstance(password, str) or not password:
         errors["password"] = "Required"
     else:
         cleaned["password"] = password
+
     return cleaned, errors
 
-# full check for login to be checked after finding thje email
+
 def get_user_by_email(email):
     query = db.select(User).where(User.email == email)
+
     return db.session.execute(query).scalar_one_or_none()
 
 
-# ------- Forgot/Reset Password Validation
-
-# checking email submitted for password reset
+# Check the address submitted to the forgot-password form.
 def validate_forgot_password_data(data):
     cleaned = {}
     errors = {}
@@ -193,13 +187,13 @@ def validate_forgot_password_data(data):
     return cleaned, errors
 
 
-# validates the new password from password reset
+# Check the reset link and new password submitted by the reset form.
 def validate_reset_password_data(data):
-
     cleaned = {}
     errors = {}
 
     token = data.get("token")
+
     if not isinstance(token, str) or not token.strip():
         errors["token"] = "Required"
     else:
@@ -210,10 +204,48 @@ def validate_reset_password_data(data):
     if not isinstance(password, str) or not password:
         errors["password"] = "Required"
     elif len(password) < MIN_PASSWORD_LENGTH:
-        errors["password"] = (f"Password is too short. Must be at least {MIN_PASSWORD_LENGTH} characters.")
+        errors["password"] = (
+            f"Password must be at least {MIN_PASSWORD_LENGTH} characters."
+        )
     elif len(password.encode("utf-8")) > MAX_PASSWORD_LENGTH:
-        errors["password"] = (f"Password is too long. Must be less than {MAX_PASSWORD_LENGTH} characters.")
+        errors["password"] = (
+            f"Password must be {MAX_PASSWORD_LENGTH} bytes or fewer."
+        )
     else:
         cleaned["password"] = password
+
+    return cleaned, errors
+
+
+# Check a signed-in user's current and new passwords before saving.
+def validate_change_password_data(data):
+    cleaned = {}
+    errors = {}
+
+    current_password = data.get("current_password")
+
+    if not isinstance(current_password, str) or not current_password:
+        errors["current_password"] = "Required"
+    else:
+        cleaned["current_password"] = current_password
+
+    new_password = data.get("new_password")
+
+    if not isinstance(new_password, str) or not new_password:
+        errors["new_password"] = "Required"
+    elif len(new_password) < MIN_PASSWORD_LENGTH:
+        errors["new_password"] = (
+            f"Must be at least {MIN_PASSWORD_LENGTH} characters"
+        )
+    elif len(new_password.encode("utf-8")) > MAX_PASSWORD_LENGTH:
+        errors["new_password"] = (
+            f"Must be {MAX_PASSWORD_LENGTH} bytes or fewer"
+        )
+    elif new_password == current_password:
+        errors["new_password"] = (
+            "Must be different from the current password"
+        )
+    else:
+        cleaned["new_password"] = new_password
 
     return cleaned, errors

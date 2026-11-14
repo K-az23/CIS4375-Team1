@@ -7,6 +7,9 @@ import SpecList from '../../components/SpecList';
 import { serviceCategories } from '../../data/services';
 import { hairOptions, pricing, specFields, formatSpec } from '../../data/hairOptions';
 import ServiceMaterials from './ServiceMaterials';
+import AdminCatalogProducts from './AdminCatalogProducts';
+import AdminServices from './AdminServices';
+import { isDemoMode } from '../../context/authUtils.js';
 
 function formatPrice(value) {
   const v = String(value).trim();
@@ -227,7 +230,7 @@ function ServicesPanel({ category, onSave }) {
   );
 }
 
-export default function Catalog() {
+function DemoCatalog() {
   const [options, setOptions] = useState(hairOptions);
   const [prices, setPrices] = useState(pricing);
   const [categories, setCategories] = useState(serviceCategories);
@@ -262,6 +265,27 @@ export default function Catalog() {
             />
           ))}
         </div>
+      </div>
+    </>
+  );
+}
+
+export default function Catalog() {
+  if (isDemoMode) return <DemoCatalog />;
+
+  return (
+    <>
+      <DashboardHeader
+        eyebrow="Website content"
+        title="Catalog"
+        subtitle="Manage hair system products, services and service materials."
+        showIcons
+      />
+
+      <div className="page-stack">
+        <AdminCatalogProducts />
+        <AdminServices />
+        <ServiceMaterials />
       </div>
     </>
   );

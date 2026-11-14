@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, Check } from 'lucide-react';
 import PageHero from '../../components/PageHero';
@@ -9,6 +9,8 @@ import { hairOptions, pricing, specFields, formatSpec } from '../../data/hairOpt
 import { business } from '../../data/business';
 import { images } from '../../data/images';
 import CatalogProducts from './CatalogProducts';
+import { isDemoMode } from '../../context/authUtils.js';
+import { getCatalog, formCatalog, formOptions } from '../../services/catalog';
 
 const emptySpecs = Object.fromEntries(specFields.map((f) => [f.key, null]));
 
@@ -16,9 +18,39 @@ export default function HairCatalog() {
   const navigate = useNavigate();
   const [specs, setSpecs] = useState(emptySpecs);
   const [agreed, setAgreed] = useState(false);
+  const [catalog, setCatalog] = useState(isDemoMode ? {
+    options: hairOptions, areaPrice: pricing.areaSystem, customFrom: pricing.customFrom, shippingDays: pricing.shippingDays,
+  } : null);
+  const [selected, setSelected] = useState(null);
+  const [error, setError] = useState('');
+  const [reload, setReload] = useState(0);
 
-  const isComplete = specFields.every((f) => specs[f.key] !== null);
-  const price = pricing.areaSystem;
+  useEffect(() => {
+    if (isDemoMode) return;
+    const controller = new AbortController();
+    async function load() {
+      setError('');
+      try {
+        const data = await getCatalog({ signal: controller.signal });
+        if (!controller.signal.aborted) setCatalog(formCatalog(data));
+      } catch (error) {
+        if (!controller.signal.aborted) setError(error.message);
+      }
+    }
+    load();
+    return () => controller.abort();
+  }, [reload]);
+
+  function chooseProduct(item, choices) {
+    setSelected(item);
+    setCatalog({ ...catalog, options: formOptions(choices.options), areaPrice: item.price, shippingDays: choices.shipping_days });
+    setSpecs(emptySpecs);
+    setAgreed(false);
+    document.getElementById('configure').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  const isComplete = catalog && specFields.every((f) => catalog.options[f.key].includes(specs[f.key]));
+  const price = catalog?.areaPrice;
 
   function choose(key, value) {
     setSpecs({ ...specs, [key]: value });
@@ -26,16 +58,23 @@ export default function HairCatalog() {
 
   function goToReview() {
     navigate('/checkout', {
-      state: { order: { title: 'Hair loss area system', specs, price } },
+      state: { order: { title: selected?.item_name || 'Hair loss area system', specs, price,
+        catalogItemId: selected?.catalog_item_id ?? null, shippingDays: catalog.shippingDays } },
     });
   }
+
+  if (!catalog) return <section className="section"><div className="container">
+    <h1>Hair catalog</h1>
+    {error ? <p role="alert" className="notice notice--warning">Couldn’t load the catalog. {error}</p> : <p role="status">Loading prices and hair options…</p>}
+    {error && <button type="button" className="btn btn-outline" onClick={() => setReload(reload + 1)}>Retry catalog</button>}
+  </div></section>;
 
   return (
     <>
       <PageHero
         eyebrow="Hair Catalog"
         title="Order your hair system"
-        subtitle={`Systems are made to order and arrive at the salon in about ${pricing.shippingDays} days.`}
+        subtitle={`Systems are made to order and arrive at the salon in about ${catalog.shippingDays} days.`}
         image={images.heroResult}
         imagePosition="center 10%"
       />
@@ -51,7 +90,7 @@ export default function HairCatalog() {
             <div className="option-card option-card--dark">
               <span className="eyebrow" style={{ color: 'var(--gold-light)' }}>First-time clients</span>
               <h3>Full custom system</h3>
-              <div className="option-card__price">${pricing.customFrom}+<small>after consultation</small></div>
+              <div className="option-card__price">${catalog.customFrom}+<small>after consultation</small></div>
               <ul>
                 <li><Check size={16} /> In-salon consultation to take your order</li>
                 <li><Check size={16} /> You receive an invoice to pay online</li>
@@ -62,7 +101,7 @@ export default function HairCatalog() {
             <div className="option-card">
               <span className="eyebrow">Order online</span>
               <h3>Hair loss area system</h3>
-              <div className="option-card__price">${pricing.areaSystem}<small>per system</small></div>
+              <div className="option-card__price">${catalog.areaPrice}<small>per system</small></div>
               <ul>
                 <li><Check size={16} /> Customize every option below</li>
                 <li><Check size={16} /> Sizes 6 x 8, 7 x 9 or 8 x 10</li>
@@ -78,17 +117,17 @@ export default function HairCatalog() {
           </div>
         </div>
       </section>
-      <CatalogProducts />
+      {!isDemoMode && <CatalogProducts onChoose={chooseProduct} />}
       <section className="section section--muted" id="configure">
         <div className="container">
-          <SectionHeader eyebrow="Customize" title="Build your hair loss area system" />
+          <SectionHeader eyebrow="Customize" title={selected ? `Customize ${selected.item_name}` : "Build your hair loss area system"} />
           <div className="config">
             <div className="card">
               {specFields.map((field) => (
                 <ChoiceGroup
                   key={field.key}
                   field={field}
-                  options={hairOptions[field.key]}
+                  options={catalog.options[field.key]}
                   value={specs[field.key]}
                   onChange={choose}
                 />
@@ -110,7 +149,7 @@ export default function HairCatalog() {
               </label>
 
               <button className="btn btn-dark btn-block" disabled={!isComplete || !agreed} onClick={goToReview}>
-                Review &amp; pay <ArrowRight size={18} />
+                {isDemoMode ? 'Review & pay' : 'Review order'} <ArrowRight size={18} />
               </button>
               {!isComplete && <p className="field-hint">Choose an option in every row to continue.</p>}
             </aside>

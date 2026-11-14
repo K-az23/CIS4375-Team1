@@ -1,31 +1,31 @@
 from ..extensions import db
-from ..models import User
+from ..models import Role, User
+from ..models.appointments import Appointment
+from ..utils.phone import normalize_phone
 
 MAX_FIRST_NAME_LENGTH = 100
 MAX_LAST_NAME_LENGTH = 100
 MAX_EMAIL_LENGTH = 150
-PHONE_DIGITS = 10
 
 
-
-# normalizes emails before being stored in db
 def _normalize_email(value):
     return value.strip().lower()
 
 
-# converts the 10-digit input to a +1 format ~ should help with SMS
 def _normalize_phone(value):
+    # Use the team's shared cleaner for formatted US phone numbers.
     if not isinstance(value, str):
         return None
 
-    value = value.strip()
-    if len(value) != PHONE_DIGITS or not value.isdigit():
-        return None
+    phone = normalize_phone(value)
 
-    return f"+1{value}"
+    if phone and phone.startswith("+1") and len(phone) == 12:
+        return phone
+
+    return None
 
 
-#check for whether another user already has tried email
+# Check whether an email belongs to another account.
 def email_taken(email, exclude_user_id=None):
     query = db.select(User.user_id).where(User.email == email)
 
@@ -35,7 +35,7 @@ def email_taken(email, exclude_user_id=None):
     return db.session.execute(query).first() is not None
 
 
-# validates customer profile changes
+# Validate the contact details a customer can update.
 def validate_user_update_data(data, user_id):
     cleaned = {}
     errors = {}
@@ -46,7 +46,9 @@ def validate_user_update_data(data, user_id):
         if not isinstance(first_name, str) or not first_name.strip():
             errors["first_name"] = "Required"
         elif len(first_name.strip()) > MAX_FIRST_NAME_LENGTH:
-            errors["first_name"] = (f"Must be less than {MAX_FIRST_NAME_LENGTH} characters")
+            errors["first_name"] = (
+                f"Must be {MAX_FIRST_NAME_LENGTH} characters or fewer"
+            )
         else:
             cleaned["first_name"] = first_name.strip()
 
@@ -55,8 +57,10 @@ def validate_user_update_data(data, user_id):
 
         if not isinstance(last_name, str) or not last_name.strip():
             errors["last_name"] = "Required"
-        elif len(last_name.strip()) > MAX_FIRST_NAME_LENGTH:
-            errors["last_name"] = (f"Must be less than {MAX_LAST_NAME_LENGTH} characters")
+        elif len(last_name.strip()) > MAX_LAST_NAME_LENGTH:
+            errors["last_name"] = (
+                f"Must be {MAX_LAST_NAME_LENGTH} characters or fewer"
+            )
         else:
             cleaned["last_name"] = last_name.strip()
 
@@ -66,10 +70,12 @@ def validate_user_update_data(data, user_id):
         if not isinstance(email, str) or not email.strip():
             errors["email"] = "Required"
         else:
-            email= _normalize_email(email)
+            email = _normalize_email(email)
 
             if len(email) > MAX_EMAIL_LENGTH:
-                errors["email"] = (f"Must be less than {MAX_EMAIL_LENGTH} characters")
+                errors["email"] = (
+                    f"Must be {MAX_EMAIL_LENGTH} characters or fewer"
+                )
             elif (
                 email.count("@") != 1
                 or email.startswith("@")
@@ -78,9 +84,12 @@ def validate_user_update_data(data, user_id):
             ):
                 errors["email"] = "Must be a valid email address"
             elif email_taken(email, exclude_user_id=user_id):
-                errors["email"] = "An account with this email already exists"
+                errors["email"] = (
+                    "An account with this email already exists"
+                )
             else:
                 cleaned["email"] = email
+
     if "phone" in data:
         phone = _normalize_phone(data["phone"])
 
@@ -92,10 +101,7 @@ def validate_user_update_data(data, user_id):
     return cleaned, errors
 
 
-
-# ------- will be for what the admin can 'update' on the user such as, is_active/is_member/no_show
-
-# validates account fields that an admin can manage
+# Keep the existing rules for account fields managed by an admin.
 def validate_admin_user_update_data(data):
     cleaned = {}
     errors = {}
@@ -113,3 +119,34 @@ def validate_admin_user_update_data(data):
             cleaned["is_member"] = data["is_member"]
 
     return cleaned, errors
+
+
+# Preserve main's customer-list lookup.
+# Last visit means the customer's most recent completed appointment.
+def get_admin_customers():
+    last_visit = (
+        db.select(
+            db.func.max(Appointment.appointment_time)
+        )
+        .where(
+            Appointment.user_id == User.user_id,
+            Appointment.status == "completed",
+        )
+        .correlate(User)
+        .scalar_subquery()
+    )
+
+    query = (
+        db.select(
+            User,
+            last_visit.label("last_visit"),
+        )
+        .join(User.role)
+        .where(Role.name == "customer")
+        .order_by(
+            User.last_name,
+            User.first_name,
+        )
+    )
+
+    return db.session.execute(query).all()

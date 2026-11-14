@@ -3,7 +3,8 @@ def register_blueprints(app):
     # imports, since route files import models that import the app's db.
     from .admin import admin_user_bp
     from .auth import auth_bp
-    from .catalog import catalog_bp
+    from .contact import contact_bp
+    from .catalog import catalog_bp, admin_catalog_bp
     from .hairpiece_order import admin_hairpiece_order_bp, hairpiece_order_bp
     from .inventory import inventory_bp
     from .item_category import item_category_bp
@@ -11,8 +12,17 @@ def register_blueprints(app):
     from .report import report_bp
     from .service import admin_service_bp, service_bp
     from .user import user_bp
+    from .service_material import service_material_bp
+    from .appointment import appointment_bp, admin_appointment_bp, order_appointment_bp
+    from .tracking_routes import purchasing_bp
 
+    app.register_blueprint(admin_catalog_bp, url_prefix="/api/admin/catalog")
+    app.register_blueprint(purchasing_bp)
+    app.register_blueprint(appointment_bp, url_prefix="/api/appointments")
+    app.register_blueprint(admin_appointment_bp, url_prefix="/api/admin/appointments")
+    app.register_blueprint(order_appointment_bp, url_prefix="/api/hairpiece-orders")
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
+    app.register_blueprint(contact_bp, url_prefix="/api/contact")
     app.register_blueprint(user_bp, url_prefix="/api/users")
     app.register_blueprint(service_bp, url_prefix="/api/services")
     app.register_blueprint(admin_service_bp, url_prefix="/api/admin/services")
@@ -28,3 +38,4 @@ def register_blueprints(app):
         admin_hairpiece_order_bp, url_prefix="/api/admin/hairpiece-orders"
     )
     app.register_blueprint(report_bp, url_prefix="/api/admin/reports")
+    app.register_blueprint(service_material_bp, url_prefix="/api/admin/services")

@@ -6,19 +6,31 @@ APPOINTMENT_STATUSES = ("booked", "completed", "cancelled", "no_show")
 class Appointment(db.Model):
     __tablename__ = "appointments"
 
+    customer_name = db.Column(db.String(200), nullable=True)
+
+    customer_email = db.Column(db.String(255), nullable=True)
+
+    customer_phone = db.Column(db.String(25), nullable=True)
+
+    # Only bookings imported from Setmore may be reconciled by a later sync.
+    setmore_synced = db.Column(db.Boolean, nullable=False, default=False, server_default='0')
+    setmore_missing = db.Column(db.Boolean, nullable=False, default=False, server_default='0')
+
     setmore_booking_id = db.Column(db.String(100), primary_key=True,)
 
     service_id = db.Column(db.Integer, db.ForeignKey("services.service_id"), nullable=False,)
 
-    user_id = db.Column(db.Integer, db.ForeignKey("users.user_id"), nullable=False,)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.user_id"), nullable=True,)
 
     appointment_time = db.Column(db.DateTime, nullable=False,)
 
     status = db.Column(db.String(30), nullable=False,)
 
-    cancellation_fee_charged = db.Column(db.Boolean, default=False)
+    # Since cancellation fee is being ommited,
+    # will be using this column to act as a flag for successful no-show charges
+    cancellation_fee_charged = db.Column(db.Boolean, nullable=False, default=False)
 
-    long_hair_surcharge = db.Column(db.Boolean, default=False)
+    long_hair_surcharge = db.Column(db.Boolean, nullable=False, default=False)
 
     # relationship helper, not column
     # connects appointments to the associated users
@@ -52,7 +64,7 @@ class Appointment(db.Model):
             "setmore_booking_id": self.setmore_booking_id,
             "service_id": self.service_id,
             "user_id": self.user_id,
-            "appointment_time": self.appointment_time.isoformat() 
+            "appointment_time": self.appointment_time.isoformat()
             if self.appointment_time is not None else None,
             "status": self.status,
             "cancellation_fee_charged": self.cancellation_fee_charged,

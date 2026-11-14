@@ -6,7 +6,8 @@ import Panel from '../../components/Panel';
 import DataTable from '../../components/DataTable';
 import StatusBadge from '../../components/StatusBadge';
 import { isDemoMode } from '../../context/authUtils.js';
-import { getAppointments } from '../../services/appointments';
+import { getAppointments, appointmentError } from '../../services/appointments';
+import AppointmentDetails from '../../components/AppointmentDetails';
 import { business } from '../../data/business';
 import { nextAppointment, customerAppointments } from '../../data/sampleData';
 
@@ -68,13 +69,16 @@ function toRow(appointment, now) {
     date: Number.isNaN(timestamp) ? 'Time unavailable' : appointmentDate.format(timestamp),
     service: appointment.service_name || (appointment.service_id == null ? 'Service unavailable' : `Service #${appointment.service_id}`),
     status: statusLabels[appointment.status] ?? 'Unknown',
-    isUpcoming: appointment.status === 'booked' && timestamp >= now,
+    missing: Boolean(appointment.setmore_missing),
+    isUpcoming: !appointment.setmore_missing && appointment.status === 'booked' && timestamp >= now,
   };
 }
 
 function LiveAppointments() {
   const [schedule, setSchedule] = useState(null);
   const [error, setError] = useState('');
+  const [refresh, setRefresh] = useState(0);
+  const [selectedId, setSelectedId] = useState(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -92,37 +96,43 @@ function LiveAppointments() {
         const rows = appointments.map((appointment) => toRow(appointment, now));
         setSchedule({
           upcoming: rows.filter((row) => row.isUpcoming).sort((a, b) => a.timestamp - b.timestamp),
-          history: rows.filter((row) => !row.isUpcoming).sort((a, b) => b.timestamp - a.timestamp),
+          verify: rows.filter((row) => row.missing),
+          history: rows.filter((row) => !row.isUpcoming && !row.missing).sort((a, b) => b.timestamp - a.timestamp),
         });
       } catch (error) {
-        if (!controller.signal.aborted) setError(error.message);
+        if (!controller.signal.aborted) setError(appointmentError(error));
       }
     }
 
     loadAppointments();
     return () => controller.abort();
-  }, []);
+  }, [refresh]);
 
-  if (error) {
-    return <p role="alert" className="notice notice--warning">Couldn’t load appointments. {error}</p>;
-  }
-
-  if (!schedule) {
-    return <p role="status">Loading appointments…</p>;
-  }
+  const liveColumns = [...columns, {
+    key: 'details', label: '', render: (row) => <button className="btn btn-outline btn-sm" onClick={() => setSelectedId(row.id)}>Details</button>,
+  }];
 
   return (
     <div className="page-stack">
-      <p className="small muted">Appointment times are shown in Central Time.</p>
-      <Panel
-        title="Upcoming appointments"
-        action={<a href={business.bookingUrl} target="_blank" rel="noreferrer" className="link-gold">Reschedule or cancel in Setmore</a>}
-      >
-        <DataTable columns={columns} rows={schedule.upcoming} emptyMessage="No upcoming appointments." />
-      </Panel>
-      <Panel title="Appointment history">
-        <DataTable columns={columns} rows={schedule.history} emptyMessage="No appointment history yet." />
-      </Panel>
+      <div><button className="btn btn-outline" onClick={() => {
+        setSchedule(null); setError(''); setSelectedId(null); setRefresh((old) => old + 1);
+      }}>Refresh appointments</button></div>
+      <p className="small muted">Appointment times are shown in Central Time. Use Setmore to reschedule or cancel.</p>
+      {error && <p role="alert" className="notice notice--warning">Couldn’t load appointments. {error}</p>}
+      {!schedule && !error && <p role="status">Loading appointments…</p>}
+      {schedule && <>
+        {schedule.verify.length > 0 && <Panel title="Check these bookings in Setmore">
+          <p className="field-hint">These bookings were not returned by the latest calendar update. They may have changed dates or been cancelled.</p>
+          <DataTable columns={liveColumns} rows={schedule.verify.map((row) => ({ ...row, status: 'Needs verification' }))} />
+        </Panel>}
+        <Panel title="Upcoming appointments">
+          <DataTable columns={liveColumns} rows={schedule.upcoming} emptyMessage="No upcoming appointments." />
+        </Panel>
+        <Panel title="Appointment history">
+          <DataTable columns={liveColumns} rows={schedule.history} emptyMessage="No appointment history yet." />
+        </Panel>
+      </>}
+      {selectedId && <AppointmentDetails key={selectedId} id={selectedId} onClose={() => setSelectedId(null)} />}
     </div>
   );
 }

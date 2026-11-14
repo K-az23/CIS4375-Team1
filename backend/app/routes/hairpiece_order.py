@@ -3,6 +3,8 @@ from flask_jwt_extended import get_jwt_identity, jwt_required
 from sqlalchemy.exc import SQLAlchemyError
 
 from ..extensions import db
+from ..models.catalog_item import CatalogOrder
+from ..logic.catalog_items import order_catalog_item
 from ..logic.hairpiece_order import (
     OrderNotAllowed,
     build_customer_order,
@@ -71,9 +73,21 @@ def create_hairpiece_order():
     if data is None:
         return jsonify(error="Request body must be a JSON object"), 400
 
+    catalog_item = None
+    if 'catalog_item_id' in data:
+        try:
+            catalog_item, errors = order_catalog_item(data['catalog_item_id'])
+        except SQLAlchemyError:
+            db.session.rollback()
+            return jsonify(error="Unable to check the catalog product"), 500
+        if errors:
+            return jsonify(error="Product unavailable", details=errors), 400
+
     order, errors = build_customer_order(user, data)
     if errors:
         return jsonify(error="Validation failed", details=errors), 400
+    if catalog_item is not None:
+        db.session.add(CatalogOrder(order=order, catalog_item_id=catalog_item.catalog_item_id, item_name=catalog_item.item_name))
     return _save(order, 201)
 
 

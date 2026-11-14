@@ -6,7 +6,11 @@ import DataTable from '../../components/DataTable';
 import StatusBadge from '../../components/StatusBadge';
 import { isDemoMode } from '../../context/authUtils.js';
 import { customerOrders, money } from '../../data/sampleData';
-import { getOrders } from '../../services/orders';
+import { getOrders, getOrder, cancelOrder, orderError, orderStatuses as liveStatuses, orderDate } from '../../services/orders';
+import OrderForm from '../../components/OrderForm';
+import OrderAppointment from '../../components/OrderAppointment';
+import OrderSummary from '../../components/OrderSummary';
+import InvoicePayment from '../../components/InvoicePayment';
 
 const orderStatuses = {
   pending: 'Pending',
@@ -38,7 +42,7 @@ function toRow(order) {
   };
 }
 
-export default function Orders() {
+function DemoOrders() {
   const navigate = useNavigate();
   const [rows, setRows] = useState(isDemoMode ? customerOrders : null);
   const [error, setError] = useState('');
@@ -106,4 +110,145 @@ export default function Orders() {
       </Panel>
     </>
   );
+}
+
+
+function CustomerOrderDetails({ id, onChanged, onBusy, onClose }) {
+  const [showPayment, setShowPayment] = useState(false);
+  const [order, setOrder] = useState(null);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [refresh, setRefresh] = useState(0);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    async function loadOrder() {
+      try {
+        const result = await getOrder(id, { signal: controller.signal });
+        if (!controller.signal.aborted) setOrder(result);
+      } catch (error) {
+        if (!controller.signal.aborted) setError(orderError(error));
+      }
+    }
+    loadOrder();
+    return () => controller.abort();
+  }, [id, refresh]);
+
+  async function cancel() {
+    if (busy || !window.confirm(`Cancel unpaid order #${id}?`)) return;
+    setBusy(true);
+    onBusy(true);
+    setError('');
+    try {
+      const saved = await cancelOrder(id);
+      setOrder(saved);
+      onChanged(saved);
+    } catch (error) {
+      setError(orderError(error));
+    } finally {
+      setBusy(false);
+      onBusy(false);
+    }
+  }
+
+  return (
+    <Panel title={`Order #${id}`}>
+      {!order && !error && <p role="status">Loading order…</p>}
+      {error && <p role="alert" className="notice notice--warning">{error}</p>}
+      {order && <OrderSummary order={order} />}
+      {order?.order_status === 'received' && <OrderAppointment order={order} />}
+      {order?.order_status === 'invoice_sent' && !showPayment && <div style={{ marginTop: 12 }}>
+        <button className="btn btn-gold" disabled={busy} onClick={() => setShowPayment(true)}>Pay invoice</button>
+        <p className="field-hint">This invoice is unpaid. Only unpaid orders can be cancelled here.</p>
+        <button className="btn btn-outline" disabled={busy} onClick={cancel}>{busy ? 'Cancelling…' : 'Cancel unpaid order'}</button>
+      </div>}
+      {showPayment && order && <InvoicePayment order={order} onChanged={(saved) => { setOrder(saved); onChanged(saved); }}
+        onBusy={(value) => { setBusy(value); onBusy(value); }} onClose={() => setShowPayment(false)} />}
+      <div className="row" style={{ marginTop: 12 }}>
+        <button className="btn btn-outline" disabled={busy} onClick={() => {
+          setOrder(null); setError(''); setRefresh((old) => old + 1);
+        }}>Refresh details</button>
+        <button className="btn btn-outline" disabled={busy} onClick={onClose}>Close details</button>
+      </div>
+    </Panel>
+  );
+}
+
+function LiveOrders() {
+  const [orders, setOrders] = useState(null);
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+  const [showForm, setShowForm] = useState(false);
+  const [selectedId, setSelectedId] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [refresh, setRefresh] = useState(0);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    async function loadOrders() {
+      try {
+        const result = await getOrders({ signal: controller.signal });
+        if (!controller.signal.aborted) setOrders(result);
+      } catch (error) {
+        if (!controller.signal.aborted) setError(orderError(error));
+      }
+    }
+    loadOrders();
+    return () => controller.abort();
+  }, [refresh]);
+
+  function reload() {
+    setOrders(null);
+    setError('');
+    setSelectedId(null);
+    setRefresh((old) => old + 1);
+  }
+
+  function created(order) {
+    setShowForm(false);
+    setMessage(`Order #${order.order_id} created and awaiting payment.`);
+    reload();
+  }
+
+  function changed(order) {
+    setOrders((old) => old.map((item) => item.order_id === order.order_id ? order : item));
+    setMessage(`Order #${order.order_id} updated.`);
+  }
+
+  const columns = [
+    { key: 'order_id', label: 'Order', render: (row) => `#${row.order_id}` },
+    { key: 'system_label', label: 'System', render: (row) => row.system_label || row.order_type },
+    { key: 'placed_at', label: 'Date', nowrap: true, render: (row) => orderDate(row.placed_at) },
+    { key: 'order_status', label: 'Status', render: (row) => <StatusBadge status={liveStatuses[row.order_status] || row.order_status} /> },
+    { key: 'price', label: 'Amount', align: 'right', render: (row) => money(row.price) },
+    { key: 'details', label: '', render: (row) => <button className="btn btn-outline btn-sm" disabled={busy || showForm}
+      onClick={() => { setSelectedId(row.order_id); setMessage(''); }}>Details</button> },
+  ];
+
+  return (
+    <>
+      <DashboardHeader eyebrow="Orders" title="Orders & invoices" subtitle="View your orders or create a hair loss area system order.">
+        {!showForm && <button className="btn btn-dark btn-sm" disabled={busy} onClick={() => {
+          setSelectedId(null); setMessage(''); setShowForm(true);
+        }}>New area order</button>}
+      </DashboardHeader>
+      <div className="page-stack">
+        {message && <p role="status" className="notice">{message}</p>}
+        {showForm && <Panel title="New hair loss area system">
+          <OrderForm onSaved={created} onClose={() => setShowForm(false)} />
+        </Panel>}
+        <Panel title="All orders">
+          <button className="btn btn-outline btn-sm" disabled={busy || showForm} onClick={reload}>Refresh orders</button>
+          {!orders && !error && <p role="status">Loading orders…</p>}
+          {error && <p role="alert" className="notice notice--warning">Couldn’t load orders. {error}</p>}
+          {orders && <DataTable columns={columns} rows={orders.map((row) => ({ ...row, id: row.order_id }))} emptyMessage="No orders yet." />}
+        </Panel>
+        {selectedId && <CustomerOrderDetails key={selectedId} id={selectedId} onChanged={changed} onBusy={setBusy} onClose={() => setSelectedId(null)} />}
+      </div>
+    </>
+  );
+}
+
+export default function Orders() {
+  return isDemoMode ? <DemoOrders /> : <LiveOrders />;
 }

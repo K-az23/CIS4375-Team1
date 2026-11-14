@@ -7,6 +7,10 @@ import DataTable from '../../components/DataTable';
 import StatusBadge from '../../components/StatusBadge';
 import SpecList from '../../components/SpecList';
 import { useAuth } from '../../context/useAuth.js';
+import { isDemoMode } from '../../context/authUtils.js';
+import HairSystemSummary from '../../components/HairSystemSummary';
+import CustomerBillingSummary from '../../components/CustomerBillingSummary';
+import NextAppointmentSummary from '../../components/NextAppointmentSummary';
 import { business } from '../../data/business';
 import { specFields, formatSpec } from '../../data/hairOptions';
 import { currentCustomer, nextAppointment, customerOrders, money } from '../../data/sampleData';
@@ -55,7 +59,7 @@ export default function CustomerDashboard() {
         <h1>Welcome back, {firstName}</h1>
       </header>
 
-      {balanceDue && (
+      {isDemoMode ? (balanceDue && (
         <div className="balance-bar" role="status">
           <Info size={20} />
           <div className="balance-bar__text">
@@ -64,7 +68,7 @@ export default function CustomerDashboard() {
           </div>
           <Link to="/account/orders" className="btn btn-dark">Pay now</Link>
         </div>
-      )}
+      )) : <CustomerBillingSummary />}
 
       <div className="overview__actions">
         {actions.map(({ to, icon: Icon, title, text }) => (
@@ -80,7 +84,7 @@ export default function CustomerDashboard() {
       </div>
 
       <div className="two-col">
-        <section className="card overview-card">
+        {isDemoMode ? (<section className="card overview-card">
           <div className="overview-card__head">
             <span className="icon-circle"><CalendarCheck size={18} /></span>
             <span className="overview-card__label">Next appointment</span>
@@ -94,8 +98,9 @@ export default function CustomerDashboard() {
           <div className="overview-card__footer">
             <Link to="/account/appointments" className="btn btn-outline">View appointments</Link>
           </div>
-        </section>
+        </section>) : <NextAppointmentSummary />}
 
+        {isDemoMode ? (
         <section className="card overview-card">
           <div className="overview-card__head">
             <span className="icon-circle"><Scissors size={18} /></span>
@@ -106,11 +111,12 @@ export default function CustomerDashboard() {
             <Link to="/account/hair-system" className="btn btn-outline">View full details</Link>
           </div>
         </section>
+        ) : <HairSystemSummary />}
       </div>
 
-      <Panel title="Recent orders" linkLabel="View all" to="/account/orders">
+      {isDemoMode ? (<Panel title="Recent orders" linkLabel="View all" to="/account/orders">
         <DataTable columns={orderColumns} rows={customerOrders} />
-      </Panel>
+      </Panel>) : <CustomerBillingSummary recent />}
 
       <p className="overview__help">
         Questions about an order or appointment? <Link to="/contact">Contact us</Link>

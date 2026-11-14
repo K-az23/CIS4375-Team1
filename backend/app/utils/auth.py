@@ -1,4 +1,6 @@
 from functools import wraps
+from hashlib import sha256
+from hmac import compare_digest
 
 import bcrypt
 from flask import current_app, jsonify
@@ -8,16 +10,9 @@ from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from ..extensions import db
 from ..models import User
 
-# password creation
-# user types password -> received in a plaintext through request memory -> bcrypt hashes it and only the hash is saved
-# -> request finishes and the plaintext disappears from request memory 
-
-# password auth
-# user types password -> temporarily received in plaintext -> bcrypt.checkpw compares -> 
-# if allowed, authentication granted -> backend can issue JWT
 
 def hash_password(password):
-    # Passwords are hashed before storage so plaintext passwords are never written to the DB
+    # Store a password hash instead of the person's actual password.
     password_byt = password.encode("utf-8")
 
     hashed_password = bcrypt.hashpw(
@@ -29,25 +24,40 @@ def hash_password(password):
 
 
 def check_password(password, password_hash):
-    # to be used during login to compare a plaintext password with the bcrypt hash stored in db
+    # bcrypt accepts at most 72 bytes. A longer password is incorrect.
+    # Do not shorten it, because that could accept a different password.
+    if not isinstance(password, str) or len(password.encode("utf-8")) > 72:
+        return False
+
     return bcrypt.checkpw(
         password.encode("utf-8"),
         password_hash.encode("utf-8"),
     )
 
 
-# ----- password reset tokens
-
-# creates a signed token used for resetting a password
 def create_password_reset_token(user_id):
+    user = db.session.get(User, user_id)
+
+    if user is None or not user.is_active:
+        raise ValueError("An active account is required")
+
     serializer = URLSafeTimedSerializer(current_app.config["SECRET_KEY"])
 
+    # Tie the link to the current password. Changing the password makes
+    # every earlier reset link stop working. No database column is needed.
+    password_check = sha256(
+        user.password_hash.encode("utf-8")
+    ).hexdigest()
+
     return serializer.dumps(
-        {"user_id": user_id},
+        {
+            "user_id": user_id,
+            "password_check": password_check,
+        },
         salt="password-reset",
     )
 
-# validating the password token and returing to user, link expires in 30min
+
 def verify_password_reset_token(token, max_age=1800):
     serializer = URLSafeTimedSerializer(current_app.config["SECRET_KEY"])
 
@@ -57,17 +67,35 @@ def verify_password_reset_token(token, max_age=1800):
             salt="password-reset",
             max_age=max_age,
         )
-        return data.get("user_id")
     except (SignatureExpired, BadSignature):
         return None
 
+    if not isinstance(data, dict):
+        return None
+
+    user_id = data.get("user_id")
+    password_check = data.get("password_check")
+
+    if type(user_id) is not int or not isinstance(password_check, str):
+        return None
+
+    user = db.session.get(User, user_id)
+
+    if user is None or not user.is_active:
+        return None
+
+    current_check = sha256(
+        user.password_hash.encode("utf-8")
+    ).hexdigest()
+
+    if not compare_digest(password_check, current_check):
+        return None
+
+    return user_id
 
 
-# -------- restrics routes to authenticated users within their required role
-# this will let us proctect routes by simply using @role_required("admin")
-# will load user attempting, checks if active and that their current role must be admin
 def role_required(required_role):
-
+    # Check the current account and role before allowing an admin action.
     def decorator(function):
         @wraps(function)
         @jwt_required()
@@ -85,5 +113,7 @@ def role_required(required_role):
                 return jsonify(error="Forbidden"), 403
 
             return function(*args, **kwargs)
+
         return wrapper
+
     return decorator

@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { Routes, Route, Link } from 'react-router-dom';
+import { Routes, Route, Link, Navigate } from 'react-router-dom';
 
 import ScrollToTop from './components/ScrollToTop';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -16,14 +16,17 @@ import Checkout from './pages/public/Checkout';
 import Memberships from './pages/public/Memberships';
 import Contact from './pages/public/Contact';
 import Login from './pages/public/Login';
+import ResetPassword from './pages/public/ResetPassword';
 import SignUp from './pages/public/SignUp';
 
+const AdminOrders = lazy(() => import('./pages/admin/AdminOrders'));
 const CustomerDashboard = lazy(() => import('./pages/customer/CustomerDashboard'));
 const BookAppointment = lazy(() => import('./pages/customer/BookAppointment'));
 const Appointments = lazy(() => import('./pages/customer/Appointments'));
 const Orders = lazy(() => import('./pages/customer/Orders'));
 const HairSpecs = lazy(() => import('./pages/customer/HairSpecs'));
-const PaymentMethod = lazy(() => import('./pages/customer/PaymentMethod'));
+
+// Main hides Card on File. Keep its source files for later use.
 const PaymentHistory = lazy(() => import('./pages/customer/PaymentHistory'));
 const CustomerSettings = lazy(() => import('./pages/customer/CustomerSettings'));
 
@@ -43,7 +46,11 @@ function NotFound() {
       <div className="container stack" style={{ maxWidth: 560 }}>
         <h1>Page not found</h1>
         <p className="muted">That page doesn't exist.</p>
-        <div><Link to="/" className="btn btn-dark">Go home</Link></div>
+        <div>
+          <Link to="/" className="btn btn-dark">
+            Go home
+          </Link>
+        </div>
       </div>
     </section>
   );
@@ -53,6 +60,7 @@ export default function App() {
   return (
     <>
       <ScrollToTop />
+
       <Suspense fallback={<Loading fullPage />}>
         <Routes>
           <Route element={<PublicLayout />}>
@@ -64,11 +72,12 @@ export default function App() {
             <Route path="/memberships" element={<Memberships />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/signup" element={<SignUp />} />
             <Route path="*" element={<NotFound />} />
           </Route>
 
-          {/* Clients only */}
+          {/* Customer pages require a customer login. */}
           <Route
             path="/account"
             element={
@@ -82,12 +91,18 @@ export default function App() {
             <Route path="appointments" element={<Appointments />} />
             <Route path="orders" element={<Orders />} />
             <Route path="hair-system" element={<HairSpecs />} />
-            <Route path="payment-method" element={<PaymentMethod />} />
+
+            {/* Send old saved-card links back to the account page. */}
+            <Route
+              path="payment-method"
+              element={<Navigate to="/account" replace />}
+            />
+
             <Route path="payments" element={<PaymentHistory />} />
             <Route path="settings" element={<CustomerSettings />} />
           </Route>
 
-          {/* Owner only */}
+          {/* Admin pages require an owner/admin login. */}
           <Route
             path="/admin"
             element={
@@ -100,6 +115,7 @@ export default function App() {
             <Route path="calendar" element={<Calendar />} />
             <Route path="checkout" element={<AppointmentCheckout />} />
             <Route path="customers" element={<Customers />} />
+            <Route path="orders" element={<AdminOrders />} />
             <Route path="purchasing" element={<PurchasingTracker />} />
             <Route path="inventory" element={<Inventory />} />
             <Route path="catalog" element={<Catalog />} />

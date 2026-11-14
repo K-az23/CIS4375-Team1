@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { isDemoMode } from '../../context/authUtils.js';
+import AdminPayments from './AdminPayments';
 import { Check, Minus, Plus, Trash2, Info } from 'lucide-react';
 import DashboardHeader from '../../components/DashboardHeader';
 import Panel from '../../components/Panel';
@@ -33,10 +35,10 @@ function startState(appt) {
   };
 }
 
-export default function AppointmentCheckout() {
+function DemoAppointmentCheckout() {
   const [selectedId, setSelectedId] = useState(todaysAppointments[0].id);
   const [form, setForm] = useState(startState(todaysAppointments[0]));
-  const [done, setDone] = useState({}); 
+  const [done, setDone] = useState({});
   const [message, setMessage] = useState('');
 
   const appt = todaysAppointments.find((a) => a.id === selectedId);
@@ -184,4 +186,8 @@ export default function AppointmentCheckout() {
       </div>
     </>
   );
+}
+
+export default function AppointmentCheckout() {
+  return isDemoMode ? <DemoAppointmentCheckout /> : <AdminPayments />;
 }

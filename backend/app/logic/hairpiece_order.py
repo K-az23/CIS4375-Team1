@@ -1,4 +1,5 @@
 from ..extensions import db
+from ..models.catalog_item import CatalogOrder
 from ..models import HairpieceOrder, Role, User
 from ..models.hairpiece_order import ORDER_STATUSES
 from .catalog import (
@@ -34,6 +35,9 @@ def order_dict(order, include_customer=False):
         **order.to_dict(),
         "system_label": SYSTEM_TYPES.get(order.order_type, {}).get("label"),
     }
+    product = db.session.get(CatalogOrder, order.order_id) if order.order_id is not None else None
+    if product is not None:
+        data['catalog_product'] = {'catalog_item_id': product.catalog_item_id, 'item_name': product.item_name}
     if include_customer:
         customer = order.user
         data["customer"] = {

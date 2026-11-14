@@ -1,5 +1,6 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import get_jwt_identity, jwt_required
+from sqlalchemy.exc import SQLAlchemyError
 
 from ..extensions import db
 from ..logic.payment import (
@@ -18,6 +19,20 @@ from ..logic.payment import (
 )
 from ..models import Payment, User
 from ..utils.auth import role_required
+from functools import wraps
+
+
+# If the database has a problem, undo the unfinished work and return a useful
+# message. Each payment route below uses the same check.
+def payment_database_errors(function):
+    @wraps(function)
+    def wrapped(*args, **kwargs):
+        try:
+            return function(*args, **kwargs)
+        except SQLAlchemyError:
+            db.session.rollback()
+            return jsonify(error="Unable to save or load payment records. Please try again."), 500
+    return wrapped
 
 payment_bp = Blueprint("payment", __name__)
 admin_payment_bp = Blueprint("admin_payment", __name__)
@@ -34,6 +49,7 @@ def _current_user():
 # POST /api/payments/setup-method
 @payment_bp.post("/setup-method")
 @jwt_required()
+@payment_database_errors
 def setup_payment_method():
     user = _current_user()
     if user is None:
@@ -50,6 +66,7 @@ def setup_payment_method():
 # GET /api/payments/method
 @payment_bp.get("/method")
 @jwt_required()
+@payment_database_errors
 def get_payment_method():
     user = _current_user()
     if user is None:
@@ -66,6 +83,7 @@ def get_payment_method():
 # POST /api/payments/create-intent
 @payment_bp.post("/create-intent")
 @jwt_required()
+@payment_database_errors
 def create_payment_intent():
     user = _current_user()
     if user is None:
@@ -89,6 +107,7 @@ def create_payment_intent():
 # GET /api/payments
 @payment_bp.get("")
 @jwt_required()
+@payment_database_errors
 def get_payments():
     user = _current_user()
     if user is None:
@@ -100,6 +119,7 @@ def get_payments():
 # GET /api/payments/<payment_id>
 @payment_bp.get("/<int:payment_id>")
 @jwt_required()
+@payment_database_errors
 def get_payment(payment_id):
     user = _current_user()
     if user is None:
@@ -114,6 +134,7 @@ def get_payment(payment_id):
 # GET /api/admin/payments?status=succeeded&from=2026-11-01&to=2026-11-30&user_id=5
 @admin_payment_bp.get("")
 @role_required("admin")
+@payment_database_errors
 def get_admin_payments():
     filters, errors = validate_payment_filters(request.args)
     if errors:
@@ -126,6 +147,7 @@ def get_admin_payments():
 # GET /api/admin/payments/<payment_id>
 @admin_payment_bp.get("/<int:payment_id>")
 @role_required("admin")
+@payment_database_errors
 def get_admin_payment(payment_id):
     payment = db.session.get(Payment, payment_id)
     if payment is None:
@@ -136,6 +158,7 @@ def get_admin_payment(payment_id):
 # POST /api/admin/payments/<payment_id>/refund
 @admin_payment_bp.post("/<int:payment_id>/refund")
 @role_required("admin")
+@payment_database_errors
 def refund_admin_payment(payment_id):
     payment = db.session.get(Payment, payment_id)
     if payment is None:
@@ -153,6 +176,7 @@ def refund_admin_payment(payment_id):
 # POST /api/webhooks/stripe
 # Called by Stripe, not the frontend, so it uses Stripe's signature instead of a login token.
 @stripe_webhook_bp.post("/stripe")
+@payment_database_errors
 def stripe_webhook():
     try:
         handle_stripe_event(

@@ -21,7 +21,7 @@ def validate_inventory_data(data, partial=False):
     if "category_id" in data or not partial:
         category_id = data.get("category_id")
 
-        if not isinstance(category_id, int):
+        if isinstance(category_id, bool) or not isinstance(category_id, int):
             errors["category_id"] = "Category ID is required"
         else:
             category = db.session.get(ItemCategory, category_id)
@@ -80,14 +80,20 @@ def validate_inventory_data(data, partial=False):
         else:
             fields["measurement"] = measurement.strip() or None
 
-    if "price" in data:
+    # An empty optional price clears the value instead of causing an error.
+    if "price" in data and data["price"] in (None, ""):
+        fields["price"] = None
+    elif "price" in data:
         try:
             price = Decimal(str(data.get("price")))
 
-            if price < 0:
-                errors["price"] = "Price cannot be negative"
+            # Keep the price within the database's money column size.
+            if not price.is_finite() or price < 0 or price > Decimal("99999999.99"):
+                errors["price"] = "Price must be between 0 and 99999999.99"
+            elif price != price.quantize(Decimal("0.01")):
+                errors["price"] = "Price can have at most two decimal places"
             else:
-                fields["price"] =  price
+                fields["price"] = price
         except (InvalidOperation, TypeError, ValueError):
             errors["price"] = "Price must be a valid number"
 
@@ -109,8 +115,9 @@ def validate_inventory_data(data, partial=False):
         if field in data:
             value = data.get(field)
 
-            if not isinstance(value, int) or value < 0:
-                errors["field"] = f"{field} must be a positive integer"
+            # True and False are not stock counts, even though Python treats them as numbers.
+            if isinstance(value, bool) or not isinstance(value, int) or value < 0 or value > 2147483647:
+                errors[field] = f"{field} must be a whole number between 0 and 2147483647"
             else:
                 fields[field] = value
     if "unit" in data or not partial:
@@ -155,7 +162,12 @@ def restock_inventory_item(item, quantity):
     if quantity <= 0:
         return None, "Quantity must be greater than 0"
 
+    if not item.is_active:
+        return None, "Inactive items cannot be restocked"
+
     current_quantity = item.quantity_on_hand or 0
+    if current_quantity + quantity > 2147483647:
+        return None, "The resulting quantity is too large"
     item.quantity_on_hand = current_quantity + quantity
 
     log = RestockLog(
@@ -171,6 +183,9 @@ def restock_inventory_item(item, quantity):
 
 # Reduces inventory by one or for a manual usage adjust
 def mark_inventory_item_used(item):
+    if not item.is_active:
+        return None, "Inactive items cannot be used"
+
     current_quantity = item.quantity_on_hand or 0
 
     if current_quantity <= 0:
@@ -189,3 +204,31 @@ def mark_inventory_item_used(item):
 
     return log, None
 
+
+
+# Change stock by a signed amount, such as +2 or -1.
+# The route saves the new count and its history entry in the same transaction.
+def adjust_inventory_item(item, quantity_change):
+    if not item.is_active:
+        return None, "Inactive items cannot be adjusted"
+
+    if isinstance(quantity_change, bool) or not isinstance(quantity_change, int):
+        return None, "Quantity change must be a whole number"
+    if quantity_change == 0:
+        return None, "Quantity change cannot be zero"
+
+    new_quantity = (item.quantity_on_hand or 0) + quantity_change
+    if new_quantity < 0:
+        return None, "This adjustment would make stock negative"
+    if new_quantity > 2147483647 or abs(quantity_change) > 2147483647:
+        return None, "The quantity change is too large"
+
+    item.quantity_on_hand = new_quantity
+    log = RestockLog(
+        item_id=item.item_id,
+        event_type="manual_adjustment",
+        quantity_change=quantity_change,
+        logged_at=datetime.now(UTC).replace(tzinfo=None),
+    )
+    db.session.add(log)
+    return log, None
