@@ -1,7 +1,6 @@
 from app.extensions import db
 from app.models import User
 from app.utils.auth import check_password
-
 from tests.helpers import PASSWORD, auth_header, make_user
 
 URL = "/api/auth/change-password"

@@ -1,12 +1,12 @@
 from unittest import mock
 
 import pytest
+
 from app import create_app
 from app.config import Config
 from app.extensions import db
 from app.logic import payment as payment_logic
 from app.models import Role
-
 from tests.helpers import WEBHOOK_SECRET
 
 
