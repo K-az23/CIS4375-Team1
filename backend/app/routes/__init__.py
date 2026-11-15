@@ -13,6 +13,8 @@ def register_blueprints(app):
     from .report import report_bp
     from .service import admin_service_bp, service_bp
     from .user import user_bp
+    from .service_checkout import service_checkout_bp
+    from .appointment_reconciliation import appointment_reconciliation_bp
 
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
     app.register_blueprint(user_bp, url_prefix="/api/users")
@@ -33,3 +35,8 @@ def register_blueprints(app):
         admin_hairpiece_order_bp, url_prefix="/api/admin/hairpiece-orders"
         )
     app.register_blueprint(report_bp, url_prefix="/api/admin/reports")
+    app.register_blueprint(service_checkout_bp, url_prefix="/api/admin")
+    app.register_blueprint(
+        appointment_reconciliation_bp,
+        url_prefix="/api/admin/appointments",
+    )

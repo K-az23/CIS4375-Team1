@@ -15,7 +15,7 @@ import { money } from '../../data/sampleData';
 
 const actions = [
   { to: '/account/book', icon: CalendarPlus, title: 'Book an appointment', text: 'Choose a service, day and time' },
-  { to: '/account/hair-system', icon: ShoppingCart, title: 'Re-order my hair system', text: 'Saved hair-system specifications from your previous purchase.' },
+  { to: '/account/hair-system', icon: ShoppingCart, title: 'Re-order my hair system', text: 'Choose from your previous paid hair-system purchases.' },
   { to: '/account/orders', icon: Package, title: 'Orders & billing', text: 'Track orders and pay invoices' },
 ];
 
@@ -129,7 +129,10 @@ export default function CustomerDashboard() {
           {systemSpecs ? (
             <SpecList rows={specFields.filter((f) => keySpecs.includes(f.key)).map((f) => [f.label, formatSpec(f.key, systemSpecs[f.key])])} />
           ) : (
-            <p className="muted">Your custom system is saved here after your consultation.</p>
+            <p className="muted">
+  Your most recent paid hair system appears here.
+  View full details to choose from previous purchases.
+</p>
           )}
           <div className="overview-card__footer">
             <Link to="/account/hair-system" className="btn btn-outline">View full details</Link>

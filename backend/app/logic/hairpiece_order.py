@@ -196,6 +196,37 @@ def latest_full_system(user):
         .first()
     )
 
+def paid_systems_query(user):
+    # Include both system types using the existing paid statuses.
+    # Refunded purchases are not available for re-ordering.
+    return (
+        db.select(HairpieceOrder)
+        .where(
+            HairpieceOrder.user_id == user.user_id,
+            HairpieceOrder.order_type.in_(
+                (AREA_SYSTEM, FULL_SYSTEM)
+            ),
+            HairpieceOrder.order_status.in_(PAID_STATUSES),
+            ~HairpieceOrder.payments.any(status="refunded"),
+        )
+        .order_by(
+            HairpieceOrder.placed_at.desc(),
+            HairpieceOrder.order_id.desc(),
+        )
+    )
+
+
+def paid_systems(user):
+    return db.session.scalars(
+        paid_systems_query(user)
+    ).all()
+
+
+def latest_paid_system(user):
+    return db.session.scalars(
+        paid_systems_query(user).limit(1)
+    ).first()
+
 
 def saved_system_dict(order):
     return {
@@ -203,47 +234,116 @@ def saved_system_dict(order):
         "system_type": order.order_type,
         "system_label": SYSTEM_TYPES[order.order_type]["label"],
         "price": float(order.price),
-        "last_ordered": order.placed_at.isoformat() if order.placed_at else None,
+        "reorder_price": float(
+            SYSTEM_TYPES[AREA_SYSTEM]["price"]
+            if order.order_type == AREA_SYSTEM
+            else order.price
+        ),
+        "last_ordered": (
+            order.placed_at.isoformat()
+            if order.placed_at
+            else None
+        ),
+        "can_reconfigure": order.order_type == AREA_SYSTEM,
         "specs": specs_from_order(order),
     }
 
 
-def build_reorder(user):
-    """A new unpaid order copying the customer's saved full system and its price."""
-    saved = latest_full_system(user)
-    if saved is None:
-        raise OrderNotAllowed("No saved hair system to re-order", 404)
-
-    unpaid = (
-        db.session.execute(
-            db.select(HairpieceOrder).where(
-                HairpieceOrder.user_id == user.user_id,
-                HairpieceOrder.order_type == FULL_SYSTEM,
-                HairpieceOrder.order_status == "invoice_sent",
-            )
-        )
-        .scalars()
-        .first()
-    )
-    if unpaid is not None:
-        # Stops a double-click from creating two orders to pay for.
+def build_reorder(user, source_order_id=None, specs=None):
+    """Copy an owned paid purchase into a new unpaid order."""
+    if source_order_id is not None and (
+        type(source_order_id) is not int
+        or not 1 <= source_order_id <= 2147483647
+    ):
         raise OrderNotAllowed(
-            f"Order #{unpaid.order_id} is waiting for payment; pay or cancel it first",
+            "source_order_id must be a positive whole number",
+            400,
+        )
+
+    # Keep simultaneous reorder requests for this customer
+    # from creating multiple unpaid orders.
+    locked_user = db.session.execute(
+        db.select(User)
+        .where(User.user_id == user.user_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    ).scalar_one_or_none()
+
+    if locked_user is None or not locked_user.is_active:
+        raise OrderNotAllowed(
+            "Account not found or inactive",
+            403,
+        )
+
+    query = paid_systems_query(user)
+
+    if source_order_id is not None:
+        query = query.where(
+            HairpieceOrder.order_id == source_order_id
+        )
+
+    saved = db.session.scalars(query.limit(1)).first()
+
+    if saved is None:
+        raise OrderNotAllowed(
+            "No paid hair system found to re-order",
+            404,
+        )
+
+    # Preserve the salon's consultation rule for full systems.
+    if specs is not None and saved.order_type == FULL_SYSTEM:
+        raise OrderNotAllowed(
+            "Changes to a full custom system require a salon consultation",
             409,
         )
 
-    columns, errors = validate_hair_specs(specs_from_order(saved), FULL_SYSTEM)
-    if errors:
-        # An option was removed from the catalog since the last order.
+    unpaid = db.session.scalar(
+        db.select(HairpieceOrder)
+        .where(
+            HairpieceOrder.user_id == user.user_id,
+            HairpieceOrder.order_type == saved.order_type,
+            HairpieceOrder.order_status == "invoice_sent",
+        )
+        .order_by(HairpieceOrder.order_id.desc())
+        .limit(1)
+        .with_for_update()
+    )
+
+    if unpaid is not None:
         raise OrderNotAllowed(
-            "Your saved system has options we no longer offer; book a consultation",
+            f"Order #{unpaid.order_id} is waiting for payment; "
+            "pay or cancel it first",
+            409,
+        )
+
+    selected_specs = (
+        specs_from_order(saved)
+        if specs is None
+        else specs
+    )
+
+    columns, errors = validate_hair_specs(
+        selected_specs,
+        saved.order_type,
+    )
+
+    if errors:
+        raise OrderNotAllowed(
+            "Choose current catalog options for every field, "
+            "or book a consultation",
             409,
         )
 
     return HairpieceOrder(
         user_id=user.user_id,
-        order_type=FULL_SYSTEM,
-        price=saved.price,
+        order_type=saved.order_type,
+        # Full-system repeats retain the salon-approved price.
+        # Area systems use the current server-side catalog price.
+        price=(
+            SYSTEM_TYPES[AREA_SYSTEM]["price"]
+            if saved.order_type == AREA_SYSTEM
+            else saved.price
+        ),
         order_status="invoice_sent",
         **columns,
     )

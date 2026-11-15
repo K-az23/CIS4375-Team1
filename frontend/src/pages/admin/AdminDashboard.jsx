@@ -12,6 +12,7 @@ import { business } from '../../data/business';
 import { api } from '../../api/client';
 import { adminOrderStatusLabel, appointmentStatusLabel, customerName, formatAppointment, todayIso } from '../../api/format';
 import { money } from '../../data/sampleData';
+import ServiceCostSummary from '../../components/ServiceCostSummary';
 
 function greeting() {
   const hour = new Date().getHours();
@@ -77,6 +78,7 @@ export default function AdminDashboard() {
         <StatCard icon={PackageMinus} label="Low stock items" value={lowStock.length} linkLabel="Inventory" to="/admin/inventory" />
         <StatCard icon={DollarSign} label="Sales today" value={money(todaySales)} linkLabel="Reports" to="/admin/reports" />
       </div>
+      <ServiceCostSummary days={1} />
 
       <div className="admin-grid">
         <div className="admin-col">

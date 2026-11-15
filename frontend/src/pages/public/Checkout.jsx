@@ -91,7 +91,7 @@ function PayForm({ order, onPaid }) {
       // Stripe may finish before its webhook reaches our backend.
       // Verify the completed payment server-side so the local
       // payment/order state updates immediately.
-      await api('api/payments/reconcile', {
+      await api('/api/payments/reconcile', {
         method: 'POST',
         body: {
           order_id: order.orderId,

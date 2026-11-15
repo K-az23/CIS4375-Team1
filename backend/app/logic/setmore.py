@@ -107,24 +107,77 @@ MAX_APPOINTMENT_PAGES = 20
 
 
 def list_appointments(start_date, end_date, customer_details=True):
-    """Every booking from start_date to end_date (date objects), all pages."""
+    """Return a complete result, or fail instead of returning partial bookings."""
     query = {
         "startDate": start_date.strftime(SETMORE_DATE_FORMAT),
         "endDate": end_date.strftime(SETMORE_DATE_FORMAT),
         "customerDetails": str(customer_details).lower(),
     }
     bookings = []
+    cursors = set()
+    booking_ids = set()
+
     for _ in range(MAX_APPOINTMENT_PAGES):
         body = _request("GET", "/bookingapi/appointments", params=query)
-        data = body.get("data") or {}
-        bookings.extend(data.get("appointments") or [])
-        # Setmore returns results in pages; the cursor asks for the next one.
-        cursor = data.get("cursor")
-        if not cursor or cursor == query.get("cursor"):
-            break
-        query["cursor"] = cursor
-    return bookings
 
+        if not isinstance(body, dict) or body.get("response") is False:
+            raise SetmoreError(
+                "Setmore did not return a successful booking list"
+            )
+
+        data = body.get("data")
+
+        if not isinstance(data, dict) or not isinstance(
+            data.get("appointments"), list
+        ):
+            raise SetmoreError(
+                "Setmore returned an unexpected booking list"
+            )
+
+        for booking in data["appointments"]:
+            booking_id = (
+                booking.get("key")
+                if isinstance(booking, dict)
+                else None
+            )
+
+            if not isinstance(booking_id, str) or not booking_id.strip():
+                raise SetmoreError(
+                    "Setmore returned a booking without an ID"
+                )
+
+            if booking_id in booking_ids:
+                raise SetmoreError(
+                    "Setmore repeated a booking; try syncing again"
+                )
+
+            booking_ids.add(booking_id)
+            bookings.append(booking)
+
+        outer_cursor = body.get("cursor")
+        inner_cursor = data.get("cursor")
+
+        if outer_cursor and inner_cursor and outer_cursor != inner_cursor:
+            raise SetmoreError(
+                "Setmore returned conflicting page cursors"
+            )
+
+        cursor = outer_cursor or inner_cursor
+
+        if not cursor:
+            return bookings
+
+        if not isinstance(cursor, str) or cursor in cursors:
+            raise SetmoreError(
+                "Setmore repeated an appointment page"
+            )
+
+        cursors.add(cursor)
+        query["cursor"] = cursor
+
+    raise SetmoreError(
+        "Setmore has more booking pages than the sync limit"
+    )
 def list_service_categories():
     """Fetch Setmore service categories."""
     return _request("GET", "/bookingapi/services/categories")

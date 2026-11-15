@@ -8,6 +8,7 @@ import StatusBadge from '../../components/StatusBadge';
 import { api } from '../../api/client';
 import { customerName, formatDate } from '../../api/format';
 import { money } from '../../data/sampleData';
+import ServiceCostSummary from '../../components/ServiceCostSummary';
 
 const SALES_DAYS = 7;
 const INVENTORY_DAYS = 30;
@@ -39,7 +40,7 @@ export default function Reports() {
       </DashboardHeader>
 
       {error && <p className="notice notice--warning"><Info size={16} /> {error}</p>}
-
+      <ServiceCostSummary days={SALES_DAYS} />
       <div className="report-grid">
         <div className="card">
           <div className="stat-card__label">Revenue · last {SALES_DAYS} days</div>
