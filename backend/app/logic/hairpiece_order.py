@@ -1,3 +1,5 @@
+from flask import current_app
+
 from ..extensions import db
 from ..models import HairpieceOrder, Role, User
 from ..models.hairpiece_order import ORDER_STATUSES
@@ -9,6 +11,7 @@ from .catalog import (
     validate_full_system_price,
     validate_hair_specs,
 )
+from .email_notif import EmailError, send_hair_system_arrival_email
 from .payment import cancel_order_payment
 
 
@@ -123,6 +126,24 @@ def change_order_status(order, new_status):
 
     order.order_status = new_status
     db.session.commit()
+
+    # notify the customer after the salon confirms that their hair system has arrived
+    if (
+        new_status == "received"
+        and order.user is not None
+    ):
+        try:
+            send_hair_system_arrival_email(
+                customer=order.user,
+                order=order,
+            )
+        except EmailError:
+            current_app.logger.exception(
+                "Unable to send arrival email "
+                "for order %s",
+                order.order_id,
+            )
+
     return order
 
 

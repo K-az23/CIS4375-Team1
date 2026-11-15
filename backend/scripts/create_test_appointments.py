@@ -38,7 +38,7 @@ with app.app_context():
 
     test_user = db.session.scalar(
         db.select(User).where(
-            User.email == "stripe-no-show-test@example.com"
+            User.email == "kevzavala23@gmail.com"
         )
     )
 
@@ -54,7 +54,7 @@ with app.app_context():
             ),
             "service_id": service.service_id,
             "user_id": test_user.user_id,
-            "appointment_time": datetime(2026, 11, 12, 18, 0),
+            "appointment_time": datetime(2026, 11, 15, 18, 0),
             "status": "booked",
         },
         {
@@ -63,7 +63,7 @@ with app.app_context():
             ),
             "service_id": service.service_id,
             "user_id": test_user.user_id,
-            "appointment_time": datetime(2026, 11, 14, 19, 0),
+            "appointment_time": datetime(2026, 11, 15, 9, 0),
             "status": "booked",
         },
     ]

@@ -7,6 +7,11 @@ from flask import current_app
 from ..extensions import db
 from ..models import HairpieceOrder, Payment
 from ..utils.salon_time import start_of_day_utc
+from .email_notif import (
+    EmailError,
+    send_admin_paid_order_email,
+    send_order_confirmation_email,
+)
 
 
 class PaymentNotAllowed(Exception):
@@ -33,24 +38,71 @@ def _update_payment(payment_intent_id, status):
         db.select(Payment).where(
             Payment.stripe_payment_intent_id == payment_intent_id
         )
+        .with_for_update()
+        .execution_options(populate_existing=True)
     ).scalar_one_or_none()
 
-    # Stripe can deliver events out of order; never undo a successful payment.
-    if payment is None or payment.status == "succeeded":
-        return payment
+    # Stripe can deliver events out of order; never undo or repeat a successful payment.
+    if payment is None:
+        return None
 
-    payment.status = status
+    order = payment.hairpiece_order
+    became_paid = False
 
     if status == "succeeded":
-        payment.charged_at = datetime.now(UTC).replace(tzinfo=None)
+        if payment.status == "refunded":
+            return payment
 
-        order = payment.hairpiece_order
+        if payment.status != "succeeded":
+            payment.status = "succeeded"
+            payment.charged_at = datetime.now(UTC).replace(tzinfo=None)
 
-        # A paid invoice is now ready for the salon to order from the vendor.
-        if order is not None and order.order_status == "invoice_sent":
+        # this transition is the event that means a hair-system order has been paid.
+        if (
+            order is not None
+            and order.order_status == "invoice_sent"
+        ):
             order.order_status = "pending"
+            became_paid = True
+
+    else:
+        # never let a later Stripe event undo success
+        if payment.status in ("succeeded", "refunded"):
+            return payment
+        payment.status = status
 
     db.session.commit()
+
+    # email will be sent after the transaction succeeds
+    # payment success will not depend on SMTP availability
+    if (
+        became_paid
+        and order is not None
+        and order.user is not None
+    ):
+        try:
+            send_order_confirmation_email(
+                customer=order.user,
+                order=order,
+                amount=payment.amount,
+            )
+        except EmailError:
+            current_app.logger.exception(
+                "Unable to send payment confirmation "
+                "for order %s",
+                order.order_id,
+            )
+        try:
+            send_admin_paid_order_email(
+                customer=order.user,
+                order=order,
+                amount=payment.amount,
+            )
+        except EmailError:
+            current_app.logger.exception(
+                "Unable to send admin order notification for %s",
+                order.order_id
+            )
 
     return payment
 

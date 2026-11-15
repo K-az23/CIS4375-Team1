@@ -54,7 +54,7 @@ export default function Contact() {
 
   return (
     <>
-      <PageHero eyebrow="Contact" title="Get in touch" subtitle="Questions about hair systems, services or an order? Leave a message and we'll reply by text or email." image={images.reserveLobby} />
+      <PageHero eyebrow="Contact" title="Get in touch" subtitle="Questions about hair systems, services or an order? Leave a message and we'll contact you directly." image={images.reserveLobby} />
 
       <section className="section">
         <div className="container">

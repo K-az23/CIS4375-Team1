@@ -110,7 +110,7 @@ def validate_inventory_data(data, partial=False):
             value = data.get(field)
 
             if not isinstance(value, int) or value < 0:
-                errors["field"] = f"{field} must be a positive integer"
+                errors[field] = f"{field} must be a non-negative integer"
             else:
                 fields[field] = value
     if "unit" in data or not partial:
@@ -189,3 +189,17 @@ def mark_inventory_item_used(item):
 
     return log, None
 
+
+
+# threshold trigger for when stock reaches 'low-stock' range
+def crossed_reorder_threshold(previous_quantity, item):
+    threshold = item.reorder_threshold
+    current_quantity = item.quantity_on_hand
+
+    if threshold is None or current_quantity is None:
+        return False
+
+    return (
+        previous_quantity > threshold
+        and current_quantity <= threshold
+    )

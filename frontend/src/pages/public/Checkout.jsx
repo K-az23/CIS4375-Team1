@@ -208,7 +208,12 @@ export default function Checkout() {
   if (paid) {
     payment = (
       <>
-        <p className="notice"><Check size={16} /> Payment received. We'll text you when your system arrives at the salon.</p>
+        <p className="notice">
+          <Check size={16} /> 
+          Payment received. A confirmation has been emailed to you.
+          Please schedule your appointment at least two weeks out from today,
+          or wait until we email you that your hair system has arrived at the salon.
+        </p>
         <div><Link to="/account/orders" className="btn btn-dark">View my orders</Link></div>
       </>
     );

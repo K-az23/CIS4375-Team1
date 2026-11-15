@@ -61,7 +61,7 @@ export default function CustomerDashboard() {
         <Modal title="Welcome to The Executive Parlor" onClose={() => setShowWelcome(false)}>
           <p className="muted">
             New clients begin with a complimentary consultation. We'll match your color, density and
-            size, then save your custom system to your account for easy re-ordering.
+            size, then send a custom system invoice to your account for easy ordering.
           </p>
           <div className="modal__actions">
             <a href={business.bookingUrl} target="_blank" rel="noreferrer" className="btn btn-gold">Book a consultation</a>
