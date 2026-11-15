@@ -5,8 +5,19 @@ from zoneinfo import ZoneInfo
 from flask import current_app
 from sqlalchemy import func
 from ..extensions import db
-from ..models import Appointment, HairpieceOrder, Role, Service, User
-from ..models.order_appointment import OrderAppointment
+from ..models import (
+    Appointment, HairpieceOrder, InventoryItem,
+    RestockLog, Role, Service, User,
+)
+from ..models import (
+    Appointment,
+    HairpieceOrder,
+    InventoryItem,
+    RestockLog,
+    Role,
+    Service,
+    User,
+)
 from ..utils.phone import normalize_phone
 from .setmore import SetmoreError, list_services, list_appointments
 
@@ -211,17 +222,49 @@ def sync_setmore_appointments(bookings, start, end):
 
 
 def sync_from_setmore(start, end):
-    # A private local startup file may supply a mock reader for testing.
-    # Normal application startup uses the existing Setmore API client.
+    # Normal startup uses Setmore. Local tests can supply a test reader.
     reader = current_app.config.get('SETMORE_READER')
-    services = read_provider_list(reader.list_services() if reader else list_services(), 'services')
+    services = read_provider_list(
+        reader.list_services() if reader else list_services(),
+        'services',
+    )
     bookings = fetch_all_bookings(start, end)
-    # Both imports are one database transaction; routes roll it back on error.
+
+    # Preserve main's date-window check using our UTC storage rules.
+    # Setmore may return bookings outside the requested dates.
+    window_start = salon_day_start(start)
+    window_end = salon_day_start(end + timedelta(days=1))
+    in_range = []
+    outside_range = 0
+
+    for booking in bookings:
+        booking_time = parse_setmore_time(booking.get('start_time'))
+
+        if (
+            booking_time is not None
+            and not window_start <= booking_time < window_end
+        ):
+            outside_range += 1
+        else:
+            # The sync reports invalid timestamps as skipped bookings.
+            in_range.append(booking)
+
+    # Save services and appointments together after all pages are read.
     service_summary = sync_service_rows(services)
-    appointment_summary = sync_setmore_appointments(bookings, start, end)
+    appointment_summary = sync_setmore_appointments(
+        in_range,
+        start,
+        end,
+    )
     db.session.commit()
-    return {'services': service_summary, 'appointments': appointment_summary,
-            'start_date': start.isoformat(), 'end_date': end.isoformat()}
+
+    return {
+        'services': service_summary,
+        'appointments': appointment_summary,
+        'ignored_outside_range': outside_range,
+        'start_date': start.isoformat(),
+        'end_date': end.isoformat(),
+    }
 
 
 def get_user_appointments(user_id):
@@ -267,13 +310,20 @@ def serialize_appointment(appointment, admin=False):
     return data
 
 
-def finalize_appointment(booking_id, status, confirmed=False):
-    appointment = db.session.execute(db.select(Appointment).where(
-        Appointment.setmore_booking_id == booking_id).with_for_update()).scalar_one_or_none()
+def finalize_appointment(booking_id, status, confirmed=False, products=None):
+    appointment = db.session.execute(
+        db.select(Appointment)
+        .where(Appointment.setmore_booking_id == booking_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    ).scalar_one_or_none()
+
     if appointment is None:
         return None, 'Appointment not found', 404
+
     if appointment.status != 'booked':
         return None, 'Appointment has already been finalized', 409
+
     if status == 'cancelled':
         if not appointment.setmore_missing or confirmed is not True:
             return None, 'Confirm this cancellation in Setmore first', 409
@@ -281,12 +331,111 @@ def finalize_appointment(booking_id, status, confirmed=False):
         return None, 'Status must be completed, no_show or cancelled', 400
     elif appointment.setmore_missing or appointment.appointment_time > utc_now():
         return None, 'Only past, confirmed bookings can be completed or marked no-show', 409
-    appointment.status = status
+
+    # A visit can still be completed without using any products.
+    if products is None:
+        products = []
+
+    if not isinstance(products, list) or len(products) > 100:
+        return None, 'Products must be a list of at most 100 items', 400
+
+    if products and status != 'completed':
+        return None, 'Products can only be used when completing a visit', 400
+
+    # Check that each product has a valid ID and whole-number quantity.
+    quantities = {}
+
+    for product in products:
+        if not isinstance(product, dict):
+            return None, 'Each product must contain item_id and quantity', 400
+
+        item_id = product.get('item_id')
+        quantity = product.get('quantity')
+
+        if type(item_id) is not int or not 1 <= item_id <= 2147483647:
+            return None, 'Product ID must be a positive whole number', 400
+
+        if type(quantity) is not int or not 1 <= quantity <= 2147483647:
+            return None, 'Product quantity must be a positive whole number', 400
+
+        if item_id in quantities:
+            return None, 'Select each product only once', 400
+
+        quantities[item_id] = quantity
+
+    # Check every product before changing the appointment or its stock.
+    for item_id in sorted(quantities):
+        item = db.session.execute(
+            db.select(InventoryItem)
+            .where(InventoryItem.item_id == item_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        ).scalar_one_or_none()
+
+        if item is None or not item.is_active:
+            return None, 'A selected product is missing or inactive', 400
+
+        if item.item_type == 'bulk':
+            return None, 'Bulk items are marked used from Inventory', 400
+
+        if (item.quantity_on_hand or 0) < quantities[item_id]:
+            return None, f'Not enough stock for {item.item_name}', 409
+
+    # Only one request can finish this visit.
+    # This prevents repeated clicks from deducting stock twice.
+    changed = db.session.execute(
+        db.update(Appointment)
+        .where(
+            Appointment.setmore_booking_id == booking_id,
+            Appointment.status == 'booked',
+        )
+        .values(status=status)
+    )
+
+    if changed.rowcount != 1:
+        return None, 'Appointment has already been finalized', 409
+
     if status == 'cancelled':
         appointment.setmore_missing = False
+
+    # Deduct the products and record their use in inventory history.
+    for item_id, quantity in sorted(quantities.items()):
+        changed = db.session.execute(
+            db.update(InventoryItem)
+            .where(
+                InventoryItem.item_id == item_id,
+                InventoryItem.is_active.is_(True),
+                InventoryItem.quantity_on_hand >= quantity,
+            )
+            .values(
+                quantity_on_hand=InventoryItem.quantity_on_hand - quantity
+            )
+        )
+
+        if changed.rowcount != 1:
+            return None, 'Stock changed. Refresh the inventory and try again.', 409
+
+        db.session.add(
+            RestockLog(
+                item_id=item_id,
+                event_type='checkout_usage',
+                quantity_change=-quantity,
+                logged_at=utc_now(),
+            )
+        )
+
+    # Keep the existing no-show count behavior.
     if status == 'no_show' and appointment.user_id:
-        # An atomic increment prevents lost counts when two bookings are finalized.
-        db.session.execute(db.update(User).where(User.user_id == appointment.user_id).values(
-            no_show_count=func.coalesce(User.no_show_count, 0) + 1))
+        db.session.execute(
+            db.update(User)
+            .where(User.user_id == appointment.user_id)
+            .values(
+                no_show_count=func.coalesce(User.no_show_count, 0) + 1
+            )
+        )
+
+    # Save the appointment and stock changes together.
+    # The route undoes everything if a database error occurs.
     db.session.commit()
+
     return appointment, None, 200

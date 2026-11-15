@@ -74,31 +74,6 @@ def update_profile():
     return jsonify(user=user.to_dict())
 
 
-# Need to work on
-
-# GET /api/users/me/hairpiece-orders
-@user_bp.route("/me/hairpiece-orders", methods=["GET"])
-def get_current_user_hairpiece_orders():
-    return jsonify({
-        "success": False,
-        "message": "Get current user hairpiece orders endpoint not implemented yet"
-    }), 501
-
-# GET /api/users/me/appointments
-@user_bp.route("/me/appointments", methods=["GET"])
-def get_current_user_appointments():
-    return jsonify({
-        "success": False,
-        "message": "Get current user appointments endpoint not implemented yet."
-    }), 501
-
-# GET /api/users/me/payments
-@user_bp.route("/me/payments", methods=["GET"])
-def get_current_user_payments():
-    return jsonify({
-        "success": False,
-        "message": "Get current user payment history endpoint not implemented yet."
-    }), 501
 
 
 # Only the signed-in customer can read or change their own saved choices.

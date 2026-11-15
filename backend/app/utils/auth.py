@@ -6,6 +6,7 @@ import bcrypt
 from flask import current_app, jsonify
 from flask_jwt_extended import get_jwt_identity, jwt_required
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
+from datetime import timedelta
 
 from ..extensions import db
 from ..models import User
@@ -58,7 +59,8 @@ def create_password_reset_token(user_id):
     )
 
 
-def verify_password_reset_token(token, max_age=1800):
+# Reset links expire after 15 minutes, matching main.
+def verify_password_reset_token(token, max_age=900):
     serializer = URLSafeTimedSerializer(current_app.config["SECRET_KEY"])
 
     try:

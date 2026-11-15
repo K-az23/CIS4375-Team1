@@ -56,6 +56,27 @@ def test_list_includes_customer_and_filters(client, admin_headers):
     assert [p["payment_id"] for p in in_november] == [november.payment_id]
 
 
+def test_date_filters_use_salon_days(client, admin_headers):
+    order = make_order(make_user("late@example.com"))
+    # 9pm on Nov 3 in Houston is 03:00 UTC on Nov 4.
+    late = make_payment(
+        order,
+        status="succeeded",
+        intent_id="pi_late",
+        charged_at=datetime(2026, 11, 4, 3),
+    )
+
+    nov_3 = client.get(
+        "/api/admin/payments?from=2026-11-03&to=2026-11-03", headers=admin_headers
+    ).get_json()["payments"]
+    assert [p["payment_id"] for p in nov_3] == [late.payment_id]
+
+    nov_4 = client.get(
+        "/api/admin/payments?from=2026-11-04&to=2026-11-04", headers=admin_headers
+    ).get_json()["payments"]
+    assert nov_4 == []
+
+
 def test_invalid_filters_return_400(client, admin_headers):
     for query in ("?status=paid", "?from=11/03/2026", "?from=2026-12-01&to=2026-11-01"):
         response = client.get(f"/api/admin/payments{query}", headers=admin_headers)

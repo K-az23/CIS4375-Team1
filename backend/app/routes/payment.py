@@ -6,14 +6,12 @@ from ..extensions import db
 from ..logic.payment import (
     PaymentError,
     PaymentNotAllowed,
-    get_saved_card,
     get_user_payment,
     handle_stripe_event,
     list_all_payments,
     list_user_payments,
     payment_with_customer,
     refund_payment,
-    start_card_setup,
     start_order_payment,
     validate_payment_filters,
 )
@@ -46,38 +44,9 @@ def _current_user():
     return user
 
 
-# POST /api/payments/setup-method
-@payment_bp.post("/setup-method")
-@jwt_required()
-@payment_database_errors
-def setup_payment_method():
-    user = _current_user()
-    if user is None:
-        return jsonify(error="Account not found or inactive"), 403
 
-    try:
-        client_secret = start_card_setup(user)
-    except PaymentError as error:
-        return jsonify(error=str(error)), 502
-
-    return jsonify(client_secret=client_secret), 201
-
-
-# GET /api/payments/method
-@payment_bp.get("/method")
-@jwt_required()
-@payment_database_errors
-def get_payment_method():
-    user = _current_user()
-    if user is None:
-        return jsonify(error="Account not found or inactive"), 403
-
-    try:
-        card = get_saved_card(user)
-    except PaymentError as error:
-        return jsonify(error=str(error)), 502
-
-    return jsonify(payment_method=card)
+# Card on File is disabled to match main.
+# Invoice payments still collect card details directly through Stripe.
 
 
 # POST /api/payments/create-intent

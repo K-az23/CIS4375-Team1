@@ -416,50 +416,77 @@ def cancel_order_payment(order):
 
 
 def handle_stripe_event(payload, signature):
-    """Verify a webhook from Stripe and apply it to the database."""
+    """Verify a Stripe event before updating payment records."""
     secret = current_app.config.get("STRIPE_WEBHOOK_SECRET")
     if not secret:
         raise PaymentError("Webhooks are not configured")
 
     try:
-        event = stripe.Webhook.construct_event(payload, signature, secret)
+        event = stripe.Webhook.construct_event(
+            payload,
+            signature,
+            secret,
+        )
     except (ValueError, stripe.SignatureVerificationError):
-        # Anyone can POST to this URL; only requests signed with our secret count.
         raise PaymentError("Invalid webhook signature") from None
 
+    # Check the event before reading its payment information.
     try:
         if not isinstance(event.type, str):
             raise ValueError
+
         stripe_object = event.data.object
         if isinstance(stripe_object, stripe.StripeObject):
             stripe_object = stripe_object.to_dict()
+
         if not isinstance(stripe_object, dict):
             raise ValueError
     except (AttributeError, KeyError, TypeError, ValueError):
         raise PaymentError("Malformed webhook event") from None
-    if event.type in ("setup_intent.succeeded", "payment_method.attached", "payment_intent.succeeded", "payment_intent.payment_failed", "payment_intent.canceled", "charge.refunded", "refund.created", "refund.updated", "refund.failed"):
-        if not isinstance(stripe_object.get('id'), str):
-            raise PaymentError("Malformed webhook event")
-    if event.type == "setup_intent.succeeded":
-        _save_card(stripe_object.get("customer"), stripe_object.get("payment_method"))
-    elif event.type == "payment_method.attached":
-        _save_card(stripe_object.get("customer"), stripe_object["id"])
-    elif event.type == "payment_intent.succeeded":
+
+    payment_events = (
+        "payment_intent.succeeded",
+        "payment_intent.payment_failed",
+        "payment_intent.canceled",
+        "charge.refunded",
+        "refund.created",
+        "refund.updated",
+        "refund.failed",
+    )
+
+    # Ignore saved-card events and other events this app does not use.
+    if event.type not in payment_events:
+        return
+
+    if not isinstance(stripe_object.get("id"), str):
+        raise PaymentError("Malformed webhook event")
+
+    if event.type == "payment_intent.succeeded":
         _update_payment(stripe_object["id"], "succeeded")
+
     elif event.type == "payment_intent.payment_failed":
         _update_payment(stripe_object["id"], "failed")
+
     elif event.type == "payment_intent.canceled":
         _update_payment(stripe_object["id"], "cancelled")
-    elif event.type == "charge.refunded" and stripe_object.get("refunded") is True:
+
+    elif (
+        event.type == "charge.refunded"
+        and stripe_object.get("refunded") is True
+    ):
         intent_id = stripe_object.get("payment_intent")
         if not isinstance(intent_id, str):
             raise PaymentError("Malformed webhook event")
         _mark_refunded(intent_id)
-    elif event.type in ("refund.created", "refund.updated", "refund.failed"):
+
+    elif event.type in (
+        "refund.created",
+        "refund.updated",
+        "refund.failed",
+    ):
         intent_id = stripe_object.get("payment_intent")
         if isinstance(intent_id, str):
             _mark_refunded(intent_id)
-
 
 def _save_card(customer_id, payment_method_id):
     if not isinstance(customer_id, str) or not isinstance(payment_method_id, str):

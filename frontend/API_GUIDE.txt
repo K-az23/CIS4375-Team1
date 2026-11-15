@@ -33,7 +33,8 @@ POST /api/auth/register creates a customer account without a token.
 POST /api/auth/login returns access_token and user.
 AuthContext saves the token in localStorage under token.
 The shared helper sends Authorization: Bearer <token>.
-Normal login tokens use main's one-hour duration.
+Customer login tokens last one hour by default.
+Admin login tokens last six hours, matching main.
 
 A protected 401 clears an expired login.
 A wrong login password shows its normal error.
@@ -52,7 +53,7 @@ An incorrect current password returns 400 and keeps the user signed in.
 
 POST /api/auth/forgot-password sends a reset email for an active account.
 POST /api/auth/reset-password accepts token and password.
-Reset links expire after 30 minutes.
+Reset links expire after 15 minutes, matching main.
 Changing a password invalidates earlier reset links for that account.
 Request a new email when testing the updated reset-link format.
 
@@ -167,7 +168,7 @@ STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET belong on the backend.
 Card numbers and CVC values go to Stripe.
 Do not store them in the application's database.
 
-Forward the required payment and saved-card events to:
+Forward payment and refund events to:
   /api/webhooks/stripe
 
 Confirm the saved payment status after Stripe confirmation.
@@ -224,3 +225,22 @@ Calendar Details:
 The appointment details panel appears below the appointment list.
 
 Do not share secret keys or password-reset links in logs or screenshots.
+
+MERGED CHECKOUT BEHAVIOR
+Customer Checkout reviews the selected system and saves an unpaid invoice.
+Customers pay that invoice from Orders & invoices.
+Only show payment confirmation after the backend records the payment.
+
+Admin Checkout keeps main's visit-completion and product-use workflow.
+Payments & refunds opens the separate admin payment-review screen.
+Services are paid in person. No-show tracking does not charge a fee.
+
+APPOINTMENT TIMES
+The combined backend returns appointment timestamps in UTC with Z.
+Live appointment pages display those timestamps in America/Chicago.
+Admin Checkout uses the salon's date when requesting today's visits.
+
+PAYMENT HISTORY
+Pending and cancelled checkouts are excluded from customer payment history.
+Order labels are loaded separately; payment history remains available
+if the request for order names fails.

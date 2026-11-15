@@ -48,7 +48,10 @@ export function AuthProvider({ children }) {
     return saved ? demoUsers[saved] : null;
   });
 
-  const [checking, setChecking] = useState(!isDemoMode);
+  // Only check for a saved login when a token exists.
+  const [checking, setChecking] = useState(
+    () => !isDemoMode && Boolean(localStorage.getItem('token'))
+  );
 
   // The API helper sends this notification when a login expires.
   // Clearing the user lets ProtectedRoute return the visitor to Log in.

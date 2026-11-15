@@ -159,9 +159,13 @@ export default function Login() {
                 autoComplete="email"
                 required
                 value={resetEmail}
-                onChange={(event) =>
-                  setResetEmail(event.target.value)
-                }
+                onChange={(event) => {
+                  setResetEmail(event.target.value);
+
+                  // Clear the previous result when the address changes.
+                  setResetSent(false);
+                  setResetError('');
+                }}
                 disabled={resetSending}
               />
             </div>

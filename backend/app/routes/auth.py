@@ -5,7 +5,7 @@ from flask_jwt_extended import (
     jwt_required,
 )
 from sqlalchemy.exc import SQLAlchemyError
-
+from datetime import timedelta
 from ..extensions import db
 from ..logic.auth import (
     email_taken,
@@ -113,9 +113,17 @@ def login():
     if not user.is_active:
         return jsonify(error="Account is inactive"), 403
 
-    access_token = create_access_token(
-        identity=str(user.user_id)
-    )
+        # Preserve main's longer admin session.
+    # Other accounts use the one-hour setting from config.py.
+    if user.role is not None and user.role.name == "admin":
+        access_token = create_access_token(
+            identity=str(user.user_id),
+            expires_delta=timedelta(hours=6),
+        )
+    else:
+        access_token = create_access_token(
+            identity=str(user.user_id)
+        )
 
     return jsonify(
         access_token=access_token,

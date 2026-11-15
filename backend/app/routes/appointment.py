@@ -85,13 +85,19 @@ def admin_details(booking_id):
     return jsonify(appointment=serialize_appointment(item, admin=True))
 
 
-def finish(booking_id, status, confirmed=False):
+def finish(booking_id, status, confirmed=False, products=None):
     try:
-        item, error, code = finalize_appointment(booking_id, status, confirmed)
+        item, error, code = finalize_appointment(
+            booking_id, status, confirmed, products
+        )
+
         if error:
             db.session.rollback()
             return jsonify(error=error), code
-        return jsonify(appointment=serialize_appointment(item, admin=True))
+
+        return jsonify(
+            appointment=serialize_appointment(item, admin=True)
+        )
     except SQLAlchemyError:
         db.session.rollback()
         return jsonify(error='Unable to update the appointment'), 500
@@ -100,7 +106,21 @@ def finish(booking_id, status, confirmed=False):
 @admin_appointment_bp.post('/<booking_id>/complete')
 @role_required('admin')
 def complete(booking_id):
-    return finish(booking_id, 'completed')
+    # Calendar details can still complete a visit without sending a body.
+    products = []
+
+    if request.get_data():
+        data = request.get_json(silent=True)
+
+        if not isinstance(data, dict):
+            return jsonify(error='Request body must be a JSON object'), 400
+
+        products = data.get('products', [])
+
+        if not isinstance(products, list):
+            return jsonify(error='Products must be a list'), 400
+
+    return finish(booking_id, 'completed', products=products)
 
 
 @admin_appointment_bp.post('/<booking_id>/no-show')

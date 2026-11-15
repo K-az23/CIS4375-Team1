@@ -35,7 +35,7 @@ class Config:
     SECRET_KEY = os.getenv("SECRET_KEY")
     JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 
-    # Keep the one-hour login duration used by latest main.
+    # Keep the one-hour login duration used by main.
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=1)
 
     SETMORE_API_BASE_URL = os.getenv("SETMORE_API_BASE_URL", "")
