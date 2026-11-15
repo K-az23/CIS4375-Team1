@@ -1,11 +1,10 @@
 from unittest import mock
 
 import stripe
-
 from app.extensions import db
 from app.models import HairpieceOrder, Payment
-from tests.helpers import auth_header, make_order, make_payment, make_user, reload
 
+from tests.helpers import auth_header, make_order, make_payment, make_user, reload
 
 
 def _start(client, headers, order_id):

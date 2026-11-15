@@ -2,13 +2,13 @@ from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import pytest
-
 from app.extensions import db
 from app.logic import service as service_logic
 from app.logic import setmore
 from app.models.appointments import Appointment
 from app.models.service import Service
 from app.routes import appointment as appointment_routes
+
 from tests.helpers import auth_header, make_user
 
 URL = "/api/admin/appointments/sync?days=14"

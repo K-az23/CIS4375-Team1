@@ -5,6 +5,7 @@ import Panel from '../../components/Panel';
 import DataTable from '../../components/DataTable';
 import StatusBadge from '../../components/StatusBadge';
 import ServiceTabs from '../../components/ServiceTabs';
+import ItemCategories from './ItemCategories';
 import { api } from '../../api/client';
 import { money } from '../../data/sampleData';
 
@@ -25,6 +26,8 @@ function displayName(item) {
 export default function Inventory() {
   const [items, setItems] = useState(null);
   const [categories, setCategories] = useState({});
+  const [categoryList, setCategoryList] = useState([]);
+  const [showCategories, setShowCategories] = useState(false);
   const [tab, setTab] = useState('per-use');
   const [showForm, setShowForm] = useState(false);
   const [newItem, setNewItem] = useState(emptyItem);
@@ -150,14 +153,31 @@ export default function Inventory() {
   return (
     <>
       <DashboardHeader eyebrow="Stock" title="Inventory" subtitle="Items at or below their reorder level show as Low." showIcons>
-        <button className="btn btn-dark btn-sm" onClick={() => setShowForm(!showForm)}>
-          <Plus size={16} /> {showForm ? 'Close form' : 'New item'}
-        </button>
+        <div className="row">
+          <button className="btn btn-outline btn-sm" onClick={() => setShowCategories(!showCategories)}>
+            {showCategories ? 'Close categories' : 'Manage categories'}
+          </button>  
+          <button className="btn btn-dark btn-sm" onClick={() => setShowForm(!showForm)}>
+            <Plus size={16} /> {showForm ? 'Close form' : 'New item'}
+          </button>
+        </div>  
       </DashboardHeader>
 
       <div className="page-stack">
         {message && <p className="notice"><Check size={16} /> {message}</p>}
         {error && <p className="notice notice--warning"><Info size={16} /> {error}</p>}
+
+        {showCategories && (
+          <ItemCategories
+            categories={categoryList}
+            onUpdated={(list) => {
+              setCategoryList(list);
+              setCategories(Object.fromEntries(
+                list.filter((category) => category.is_active).map((category) => [category.category_id, category.category_name]),
+              ));
+            }}
+          />
+        )}
 
         {showForm && (
           <Panel title="New inventory item">

@@ -30,6 +30,7 @@ const PaymentHistory = lazy(() => import('./pages/customer/PaymentHistory'));
 const CustomerSettings = lazy(() => import('./pages/customer/CustomerSettings'));
 
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
+const AdminPayments = lazy(() => import('./pages/admin/AdminPayments'));
 const Calendar = lazy(() => import('./pages/admin/Calendar'));
 const AppointmentCheckout = lazy(() => import('./pages/admin/AppointmentCheckout'));
 const Customers = lazy(() => import('./pages/admin/Customers'));
@@ -102,6 +103,7 @@ export default function App() {
             <Route index element={<AdminDashboard />} />
             <Route path="calendar" element={<Calendar />} />
             <Route path="checkout" element={<AppointmentCheckout />} />
+            <Route path="payments" element={<AdminPayments />} />
             <Route path="customers" element={<Customers />} />
             <Route path="purchasing" element={<PurchasingTracker />} />
             <Route path="inventory" element={<Inventory />} />

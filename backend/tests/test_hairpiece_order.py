@@ -1,8 +1,8 @@
 from unittest import mock
 
 import pytest
-
 from app.models import HairpieceOrder, Payment
+
 from tests.helpers import (
     auth_header,
     make_order,

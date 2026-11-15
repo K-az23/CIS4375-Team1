@@ -15,7 +15,7 @@ import { money } from '../../data/sampleData';
 
 const actions = [
   { to: '/account/book', icon: CalendarPlus, title: 'Book an appointment', text: 'Choose a service, day and time' },
-  { to: '/account/hair-system', icon: ShoppingCart, title: 'Re-order my hair system', text: 'Uses your saved specifications' },
+  { to: '/account/hair-system', icon: ShoppingCart, title: 'Re-order my hair system', text: 'Saved hair-system specifications from your previous purchase.' },
   { to: '/account/orders', icon: Package, title: 'Orders & billing', text: 'Track orders and pay invoices' },
 ];
 

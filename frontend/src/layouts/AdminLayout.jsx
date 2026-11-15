@@ -11,6 +11,7 @@ const adminLinks = [
   { to: '/admin/calendar', label: 'Calendar', icon: CalendarDays },
   { to: '/admin/checkout', label: 'Checkout & Billing', icon: Receipt },
   { to: '/admin/customers', label: 'Customers', icon: Users },
+  { to: '/admin/payments', label: 'Payments & Refunds', icon: Receipt },
   { to: '/admin/purchasing', label: 'Hair Orders', icon: Truck },
   { to: '/admin/inventory', label: 'Inventory', icon: Package },
   { to: '/admin/catalog', label: 'Catalog', icon: BookOpen },
