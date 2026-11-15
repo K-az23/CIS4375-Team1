@@ -30,20 +30,29 @@ def _client():
 
 def _update_payment(payment_intent_id, status):
     payment = db.session.execute(
-        db.select(Payment).where(Payment.stripe_payment_intent_id == payment_intent_id)
+        db.select(Payment).where(
+            Payment.stripe_payment_intent_id == payment_intent_id
+        )
     ).scalar_one_or_none()
+
     # Stripe can deliver events out of order; never undo a successful payment.
     if payment is None or payment.status == "succeeded":
-        return
+        return payment
 
     payment.status = status
+
     if status == "succeeded":
         payment.charged_at = datetime.now(UTC).replace(tzinfo=None)
+
         order = payment.hairpiece_order
-        # Paid: Natasha can now order the system from the vendor.
+
+        # A paid invoice is now ready for the salon to order from the vendor.
         if order is not None and order.order_status == "invoice_sent":
             order.order_status = "pending"
+
     db.session.commit()
+
+    return payment
 
 
 def get_or_create_stripe_customer(user):
@@ -145,15 +154,45 @@ def start_order_payment(user, order_id):
     if payment is not None:
         if payment.status == "succeeded":
             raise PaymentNotAllowed("This order is already paid", 409)
+
         try:
             intent = _client().v1.payment_intents.retrieve(
                 payment.stripe_payment_intent_id
             )
         except stripe.StripeError:
-            raise PaymentError("Unable to reach the payment service") from None
-        # Reusing the open PaymentIntent means a refresh or retry can't charge twice.
-        if intent.status != "canceled":
+            raise PaymentError(
+                "Unable to reach the payment service"
+            ) from None
+
+        # Stripe may have successfully charged the card even if our webhook
+        # has not updated the local database yet.
+        if intent.status == "succeeded":
+            _update_payment(
+                payment.stripe_payment_intent_id,
+                "succeeded",
+            )
+
+            raise PaymentNotAllowed(
+                "This order is already paid",
+                409,
+            )
+
+        # These states can safely continue using the existing PaymentIntent.
+        if intent.status in (
+            "requires_payment_method",
+            "requires_confirmation",
+            "requires_action",
+        ):
             return intent.client_secret
+
+        # Do not try to mount another card form while Stripe is still processing.
+        if intent.status == "processing":
+            raise PaymentNotAllowed(
+                "This payment is still processing",
+                409,
+            )
+
+        # A cancelled or otherwise unusable intent can be replaced.
         payment.status = "failed"
 
     customer_id = get_or_create_stripe_customer(user)
@@ -405,6 +444,80 @@ def _mark_refunded(payment_intent_id):
 
     payment.status = "refunded"
     db.session.commit()
+
+
+# Confirms an order payment with Stripe and ensures correct local state
+# back up for the webhook which remains the primary update path,
+# this is a fallback for successful browser payments when webhook delivery is delayed or missed.
+def reconcile_order_payment(user, order_id):
+    order = db.session.get(
+        HairpieceOrder,
+        order_id,
+    )
+
+    if order is None or order.user_id != user.user_id:
+        raise PaymentNotAllowed(
+            "Order not found",
+            404,
+        )
+
+    payment = (
+        db.session.execute(
+            db.select(Payment)
+            .where(
+                Payment.order_id == order.order_id,
+            )
+            .where(
+                Payment.stripe_payment_intent_id.is_not(None)
+            )
+            .order_by(
+                Payment.payment_id.desc()
+            )
+        )
+        .scalars()
+        .first()
+    )
+
+    if payment is None:
+        raise PaymentNotAllowed(
+            "No payment found for this order",
+            404,
+        )
+
+    # The webhook may already have updated our database.
+    if payment.status == "succeeded":
+        return payment
+
+    try:
+        intent = _client().v1.payment_intents.retrieve(
+            payment.stripe_payment_intent_id
+        )
+    except stripe.StripeError:
+        raise PaymentError(
+            "Unable to confirm the payment"
+        ) from None
+
+    if intent.status == "succeeded":
+        return _update_payment(
+            payment.stripe_payment_intent_id,
+            "succeeded",
+        )
+
+    if intent.status == "canceled":
+        _update_payment(
+            payment.stripe_payment_intent_id,
+            "cancelled",
+        )
+
+        raise PaymentNotAllowed(
+            "This payment was cancelled",
+            409,
+        )
+
+    raise PaymentNotAllowed(
+        "Payment has not completed yet",
+        409,
+    )
 
 
 # For returning an existing active no-show payment

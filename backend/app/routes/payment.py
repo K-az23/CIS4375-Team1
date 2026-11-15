@@ -11,6 +11,7 @@ from ..logic.payment import (
     list_all_payments,
     list_user_payments,
     payment_with_customer,
+    reconcile_order_payment,
     refund_payment,
     # start_card_setup,  (card on file is turned off)
     start_order_payment,
@@ -166,3 +167,48 @@ def stripe_webhook():
 
     # Stripe retries any event that doesn't get a 2xx response.
     return jsonify(received=True)
+
+
+# POST /adi/payments/reconcile
+@payment_bp.post("/reconcile")
+@jwt_required()
+def reconcile_payment():
+    user = _current_user()
+
+    if user is None:
+        return jsonify(
+            error="Account not found or inactive"
+        ), 403
+
+    data = request.get_json(silent=True)
+
+    order_id = (
+        data.get("order_id")
+        if isinstance(data, dict)
+        else None
+    )
+
+    if not isinstance(order_id, int) or isinstance(order_id, bool):
+        return jsonify(
+            error="order_id is required and must be a number"
+        ), 400
+
+    try:
+        payment = reconcile_order_payment(
+            user,
+            order_id,
+        )
+
+    except PaymentNotAllowed as error:
+        return jsonify(
+            error=str(error)
+        ), error.status
+
+    except PaymentError as error:
+        return jsonify(
+            error=str(error)
+        ), 502
+
+    return jsonify(
+        payment=payment.to_dict()
+    )
