@@ -1,8 +1,10 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, current_app, jsonify, request
 from sqlalchemy.exc import SQLAlchemyError
 
 from ..extensions import db
+from ..logic.email_notif import EmailError, send_admin_low_stock_email
 from ..logic.inventory import (
+    crossed_reorder_threshold,
     mark_inventory_item_used,
     restock_inventory_item,
     sku_taken,
@@ -106,6 +108,7 @@ def update_inventory_item(item_id):
 
     if item is None:
         return jsonify(error="Inventory item not found"), 404
+    previous_quantity = item.quantity_on_hand or 0
 
     data = request.get_json(silent=True)
 
@@ -137,6 +140,17 @@ def update_inventory_item(item_id):
     except SQLAlchemyError:
         db.session.rollback()
         return jsonify(error="Unable to update inventory item"), 500
+    if (
+        "quantity_on_hand" in fields
+        and crossed_reorder_threshold(previous_quantity, item)
+    ):
+        try:
+            send_admin_low_stock_email(item)
+        except EmailError:
+            current_app.logger.exception(
+                "Unable to send low-stock email for item %s",
+                item.item_id,
+            )
 
     return jsonify(item=item.to_dict())
 
@@ -206,6 +220,8 @@ def use_inventory_item(item_id):
 
     if item is None:
         return jsonify(error="Inventory item not found"), 404
+    
+    previous_quantity = item.quantity_on_hand or 0
 
     log, error = mark_inventory_item_used(item)
 
@@ -216,7 +232,13 @@ def use_inventory_item(item_id):
         db.session.commit()
     except SQLAlchemyError:
         db.session.rollback()
-        return jsonify(error="Unable to update inventory item"), 500
+        return jsonify(error = "Unable to update inventory item"), 500
+
+    if crossed_reorder_threshold(previous_quantity, item):
+        try:
+            send_admin_low_stock_email(item)
+        except EmailError:
+            current_app.logger.exception("Unable to send low-stock email for item %s", item.item_id)
 
     return jsonify(
         message="One inventory item marked used",

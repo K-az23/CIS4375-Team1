@@ -79,3 +79,20 @@ npm run build
 ## Branches
 
 `feature/...` → `BackTest` / `FrontTest` → `FinalTest` → `main`. Every merge goes through a pull request using the template in `.github/pull_request_template.md`.
+
+Service checkout setup
+
+Before using service checkout and product-cost reporting on an existing
+deployment, create the service_checkouts table.
+
+From the backend directory, using the deployment's Python environment
+and database settings, run:
+
+python -B create_service_checkout_table.py --apply
+
+The script creates the table if missing and does not delete existing data.
+
+Service checkout records payments already received in person.
+Setmore cancellation reconciliation requires owner verification;
+missing bookings are not automatically marked cancelled.
+Local practice startup files are not deployment files.

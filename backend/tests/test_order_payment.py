@@ -3,8 +3,8 @@ from unittest import mock
 import stripe
 
 from app.extensions import db
-from app.models import Payment
-from tests.helpers import auth_header, make_order, make_payment, make_user
+from app.models import HairpieceOrder, Payment
+from tests.helpers import auth_header, make_order, make_payment, make_user, reload
 
 
 def _start(client, headers, order_id):
@@ -93,3 +93,164 @@ def test_stripe_outage_returns_502(client, fake_stripe):
     response = _start(client, auth_header(client, "a@example.com"), order.order_id)
 
     assert response.status_code == 502
+
+
+def test_second_call_repairs_succeeded_intent(
+    client,
+    fake_stripe,
+):
+    user = make_user("a@example.com")
+    order = make_order(user)
+
+    payment = make_payment(
+        order,
+        status="pending",
+        intent_id="pi_1",
+    )
+
+    fake_stripe.v1.payment_intents.retrieve.return_value = (
+        mock.Mock(
+            status="succeeded",
+            client_secret="pi_1_secret_x",
+        )
+    )
+
+    response = _start(
+        client,
+        auth_header(client, "a@example.com"),
+        order.order_id,
+    )
+
+    assert response.status_code == 409
+    assert response.get_json() == {
+        "error": "This order is already paid"
+    }
+
+    updated_payment = reload(
+        Payment,
+        payment.payment_id,
+    )
+
+    updated_order = reload(
+        HairpieceOrder,
+        order.order_id,
+    )
+
+    assert updated_payment.status == "succeeded"
+    assert updated_payment.charged_at is not None
+    assert updated_order.order_status == "pending"
+
+
+def test_reconcile_repairs_success_when_webhook_is_delayed(
+    client,
+    fake_stripe,
+):
+    user = make_user("a@example.com")
+    order = make_order(user)
+
+    payment = make_payment(
+        order,
+        status="pending",
+        intent_id="pi_1",
+    )
+
+    fake_stripe.v1.payment_intents.retrieve.return_value = (
+        mock.Mock(status="succeeded")
+    )
+
+    response = client.post(
+        "/api/payments/reconcile",
+        json={
+            "order_id": order.order_id,
+        },
+        headers=auth_header(
+            client,
+            "a@example.com",
+        ),
+    )
+
+    assert response.status_code == 200
+    assert response.get_json()["payment"]["status"] == "succeeded"
+
+    updated_payment = reload(
+        Payment,
+        payment.payment_id,
+    )
+
+    updated_order = reload(
+        HairpieceOrder,
+        order.order_id,
+    )
+
+    assert updated_payment.status == "succeeded"
+    assert updated_payment.charged_at is not None
+    assert updated_order.order_status == "pending"
+
+
+def test_reconcile_rejects_another_customers_order(
+    client,
+    fake_stripe,
+):
+    owner = make_user("owner@example.com")
+    make_user("other@example.com")
+
+    order = make_order(owner)
+
+    make_payment(
+        order,
+        status="pending",
+        intent_id="pi_1",
+    )
+
+    response = client.post(
+        "/api/payments/reconcile",
+        json={
+            "order_id": order.order_id,
+        },
+        headers=auth_header(
+            client,
+            "other@example.com",
+        ),
+    )
+
+    assert response.status_code == 404
+
+    fake_stripe.v1.payment_intents.retrieve.assert_not_called()
+
+
+def test_reconcile_is_idempotent_after_webhook(
+    client,
+    fake_stripe,
+):
+    user = make_user("a@example.com")
+
+    order = make_order(
+        user,
+        status="pending",
+    )
+
+    payment = make_payment(
+        order,
+        status="succeeded",
+        intent_id="pi_1",
+    )
+
+    response = client.post(
+        "/api/payments/reconcile",
+        json={
+            "order_id": order.order_id,
+        },
+        headers=auth_header(
+            client,
+            "a@example.com",
+        ),
+    )
+
+    assert response.status_code == 200
+
+    assert (
+        response.get_json()["payment"]["payment_id"]
+        == payment.payment_id
+    )
+
+    fake_stripe.v1.payment_intents.retrieve.assert_not_called()

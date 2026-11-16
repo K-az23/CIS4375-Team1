@@ -81,12 +81,29 @@ function PayForm({ order, onPaid }) {
       redirect: 'if_required',
       confirmParams: { return_url: `${window.location.origin}/account/orders` },
     });
-    setPaying(false);
     if (stripeError) {
+      setPaying(false);
       setError(stripeError.message);
       return;
     }
-    onPaid();
+
+    try {
+      // Stripe may finish before its webhook reaches our backend.
+      // Verify the completed payment server-side so the local
+      // payment/order state updates immediately.
+      await api('/api/payments/reconcile', {
+        method: 'POST',
+        body: {
+          order_id: order.orderId,
+        }
+      });
+
+      onPaid();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setPaying(false);
+    }
   }
 
   return (
@@ -154,6 +171,16 @@ export default function Checkout() {
         });
         setClientSecret(intent.client_secret);
       } catch (err) {
+        // A previous payment attempt may have succeeded in Stripe
+        // before the local database caught up.
+        if (
+          err.status === 409
+          && err.message === 'This order is already paid'
+        ) {
+          clearSaved();
+          setPaid(true);
+          return;
+        }
         setError(err.message);
       }
     }
@@ -181,7 +208,12 @@ export default function Checkout() {
   if (paid) {
     payment = (
       <>
-        <p className="notice"><Check size={16} /> Payment received. We'll text you when your system arrives at the salon.</p>
+        <p className="notice">
+          <Check size={16} /> 
+          Payment received. A confirmation has been emailed to you.
+          Please schedule your appointment at least two weeks out from today,
+          or wait until we email you that your hair system has arrived at the salon.
+        </p>
         <div><Link to="/account/orders" className="btn btn-dark">View my orders</Link></div>
       </>
     );

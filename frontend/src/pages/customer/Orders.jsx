@@ -62,7 +62,7 @@ export default function Orders() {
 
   return (
     <>
-      <DashboardHeader eyebrow="Orders" title="Orders & invoices" subtitle="Systems arrive at the salon about 10 days after payment. We'll text you when yours is received." />
+      <DashboardHeader eyebrow="Orders" title="Orders & invoices" subtitle="Systems arrive at the salon about 14 days after payment. We'll email you when yours arrives." />
       {error && <p className="notice notice--warning"><Info size={16} /> {error}</p>}
       <Panel title="All orders">
         <DataTable
