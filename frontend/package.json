@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@stripe/react-stripe-js": "7.0.1",
-    "@stripe/stripe-js": "10.2.0",
+    "@stripe/stripe-js": "10.3.0",
     "lucide-react": "^1.70.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
